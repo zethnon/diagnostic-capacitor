@@ -1,4 +1,4 @@
-name: iOS Swift Package Build
+name: iOS Build (Xcode)
 
 on:
   push:
@@ -23,13 +23,18 @@ jobs:
       - name: Typecheck
         run: npx tsc -p tsconfig.json --noEmit
 
-      - name: Swift build (plugin)
+      - name: Generate Xcode project (SwiftPM)
         run: |
           cd ios
-          swift --version
-          swift build -v
+          swift package generate-xcodeproj
 
-      - name: Swift test (plugin)
+      - name: Build iOS (Simulator)
         run: |
           cd ios
-          swift test -v
+          xcodebuild \
+            -project NoesisDiagnosticCapacitor.xcodeproj \
+            -scheme NoesisDiagnosticCapacitor \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -configuration Debug \
+            build
