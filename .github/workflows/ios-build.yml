@@ -47,19 +47,17 @@ jobs:
           echo "Using package dir: $PKG_DIR"
           echo "pkg_dir=$PKG_DIR" >> "$GITHUB_OUTPUT"
 
-      - name: Build iOS (SwiftPM via Xcode)
-        shell: bash
-        run: |
-          set -euo pipefail
-          cd "${{ steps.pkg.outputs.pkg_dir }}"
-
-          xcodebuild -version
-          xcodebuild -list
-
-          # Most SwiftPM packages expose a "<PackageName>-Package" scheme.
-          # If your scheme name differs, the -list output will show it.
-          xcodebuild \
-            -scheme NoesisDiagnosticCapacitor-Package \
-            -destination 'generic/platform=iOS Simulator' \
-            -configuration Debug \
-            build
+            - name: Build iOS (SwiftPM via Xcode)
+              shell: bash
+              run: |
+                set -euo pipefail
+                cd "${{ steps.pkg.outputs.pkg_dir }}"
+      
+                xcodebuild -version
+                xcodebuild -list
+      
+                xcodebuild \
+                  -scheme NoesisDiagnosticCapacitor \
+                  -destination 'generic/platform=iOS Simulator' \
+                  -configuration Debug \
+                  build
