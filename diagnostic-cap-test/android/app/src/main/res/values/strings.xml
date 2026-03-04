@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">diagnostic-cap-test</string>
+    <string name="title_activity_main">diagnostic-cap-test</string>
+    <string name="package_name">com.noesis.diagtest</string>
+    <string name="custom_url_scheme">com.noesis.diagtest</string>
+</resources>

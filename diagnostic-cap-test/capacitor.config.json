@@ -1,0 +1,10 @@
+{
+  "appId": "com.noesis.diagtest",
+  "appName": "diagnostic-cap-test",
+  "webDir": "dist",
+  "plugins": {
+    "SplashScreen": {
+      "launchAutoHide": false
+    }
+  }
+}
