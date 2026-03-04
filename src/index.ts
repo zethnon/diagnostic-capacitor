@@ -1,10 +1,54 @@
-import { registerPlugin } from '@capacitor/core';
+import { WebPlugin } from '@capacitor/core';
+import type { DiagnosticPlugin } from './definitions';
 
-import type { DiagnosticPluginPlugin } from './definitions';
+export class DiagnosticPluginWeb extends WebPlugin implements DiagnosticPlugin {
+  async getLocationAuthorizationStatus(): Promise<{ status: string }> {
+    return { status: 'not_implemented' };
+  }
 
-const DiagnosticPlugin = registerPlugin<DiagnosticPluginPlugin>('DiagnosticPlugin', {
-  web: () => import('./web').then((m) => new m.DiagnosticPluginWeb()),
-});
+  async requestLocationAuthorization(_options?: {
+    mode?: 'always' | 'when_in_use';
+  }): Promise<{ status: string }> {
+    return { status: 'not_implemented' };
+  }
 
-export * from './definitions';
-export { DiagnosticPlugin };
+  async isLocationEnabled(): Promise<{ enabled: boolean }> {
+    return { enabled: false };
+  }
+
+  async openLocationSettings(): Promise<void> {
+    // no-op on web
+  }
+
+  async isLocationAvailable(): Promise<{ available: boolean }> {
+    return { available: false };
+  }
+
+  async getLocationMode(): Promise<{ mode: string }> {
+    return { mode: 'unknown' };
+  }
+
+  async isGpsLocationEnabled(): Promise<{ enabled: boolean }> {
+    return { enabled: false };
+  }
+
+  async isNetworkLocationEnabled(): Promise<{ enabled: boolean }> {
+    return { enabled: false };
+  }
+
+  async isGpsLocationAvailable(): Promise<{ available: boolean }> {
+    return { available: false };
+  }
+
+  async isNetworkLocationAvailable(): Promise<{ available: boolean }> {
+    return { available: false };
+  }
+
+  async switchToLocationSettings(): Promise<void> {
+    // no-op on web
+  }
+
+  async isCompassAvailable(): Promise<{ available: boolean }> {
+    return { available: false };
+  }
+}
