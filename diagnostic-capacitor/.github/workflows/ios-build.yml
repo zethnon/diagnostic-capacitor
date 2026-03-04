@@ -1,4 +1,4 @@
-name: iOS Swift Package Build
+name: iOS Build (Xcode)
 
 on:
   push:
@@ -23,13 +23,40 @@ jobs:
       - name: Typecheck
         run: npx tsc -p tsconfig.json --noEmit
 
-      - name: Swift build (plugin)
+      - name: Locate Package.swift
+        id: pkg
+        shell: bash
         run: |
-          cd ios
-          swift --version
-          swift build -v
+          set -euo pipefail
+          echo "Repo tree (top-level):"
+          ls -la
 
-      - name: Swift test (plugin)
+          echo "Looking for Package.swift..."
+          PKG_FILE="$(find . -maxdepth 6 -name Package.swift -print -quit || true)"
+
+          if [[ -z "$PKG_FILE" ]]; then
+            echo "ERROR: Package.swift not found anywhere in repo (maxdepth 6)."
+            echo "Dumping ios/ (if exists):"
+            ls -la ios || true
+            exit 1
+          fi
+
+          PKG_DIR="$(dirname "$PKG_FILE")"
+          echo "Found Package.swift at: $PKG_FILE"
+          echo "Using package dir: $PKG_DIR"
+          echo "pkg_dir=$PKG_DIR" >> "$GITHUB_OUTPUT"
+
+      - name: Build iOS (SwiftPM via Xcode)
+        shell: bash
         run: |
-          cd ios
-          swift test -v
+          set -euo pipefail
+          cd "${{ steps.pkg.outputs.pkg_dir }}"
+
+          xcodebuild -version
+          xcodebuild -list
+
+          xcodebuild \
+            -scheme NoesisDiagnosticCapacitor \
+            -destination 'generic/platform=iOS Simulator' \
+            -configuration Debug \
+            build
