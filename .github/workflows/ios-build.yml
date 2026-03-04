@@ -23,13 +23,41 @@ jobs:
       - name: Typecheck
         run: npx tsc -p tsconfig.json --noEmit
 
-      - name: Build iOS (SwiftPM via Xcode)
+      # Find the SwiftPM package root (where Package.swift actually lives)
+      - name: Locate Package.swift
+        id: pkg
+        shell: bash
         run: |
-          cd ios
+          set -euo pipefail
+          echo "Repo tree (top-level):"
+          ls -la
+
+          echo "Looking for Package.swift..."
+          PKG_FILE="$(find . -maxdepth 6 -name Package.swift -print -quit || true)"
+
+          if [[ -z "$PKG_FILE" ]]; then
+            echo "ERROR: Package.swift not found anywhere in repo (maxdepth 6)."
+            echo "Dumping ios/ (if exists):"
+            ls -la ios || true
+            exit 1
+          fi
+
+          PKG_DIR="$(dirname "$PKG_FILE")"
+          echo "Found Package.swift at: $PKG_FILE"
+          echo "Using package dir: $PKG_DIR"
+          echo "pkg_dir=$PKG_DIR" >> "$GITHUB_OUTPUT"
+
+      - name: Build iOS (SwiftPM via Xcode)
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "${{ steps.pkg.outputs.pkg_dir }}"
+
           xcodebuild -version
           xcodebuild -list
 
-          # Build SwiftPM package for iOS Simulator
+          # Most SwiftPM packages expose a "<PackageName>-Package" scheme.
+          # If your scheme name differs, the -list output will show it.
           xcodebuild \
             -scheme NoesisDiagnosticCapacitor-Package \
             -destination 'generic/platform=iOS Simulator' \
