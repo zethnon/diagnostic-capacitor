@@ -1,11 +1,12 @@
-name: iOS Build
+name: iOS Swift Package Build
 
 on:
   push:
     branches: [ main ]
+  pull_request:
 
 jobs:
-  build:
+  ios:
     runs-on: macos-latest
 
     steps:
@@ -16,14 +17,19 @@ jobs:
         with:
           node-version: 20
 
-      - name: Install dependencies
-        run: npm install
+      - name: Install JS deps
+        run: npm ci
 
-      - name: Compile TypeScript
-        run: npx tsc
-        
-      - name: Build iOS plugin
+      - name: Typecheck
+        run: npx tsc -p tsconfig.json --noEmit
+
+      - name: Swift build (plugin)
         run: |
           cd ios
-          xcodebuild -scheme DiagnosticPlugin -sdk iphonesimulator build
-      
+          swift --version
+          swift build -v
+
+      - name: Swift test (plugin)
+        run: |
+          cd ios
+          swift test -v
