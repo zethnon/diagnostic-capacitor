@@ -1,6 +1,7 @@
 # node files
 dist
 node_modules
+**/node_modules/
 
 # iOS files
 Pods
@@ -68,3 +69,14 @@ captures
 
 # External native build folder generated in Android Studio 2.2 and later
 .externalNativeBuild
+
+
+# builds
+dist/
+**/dist/
+android/build/
+**/android/build/
+ios/Pods/
+**/ios/Pods/
+**/DerivedData/
+**/build/

@@ -1,5 +1,5 @@
 import XCTest
-@testable import DiagnosticPluginPlugin
+@testable import DiagnosticPlugin
 
 class DiagnosticPluginTests: XCTestCase {
     func testEcho() {

@@ -1,4 +1,4 @@
-export interface DiagnosticPluginPlugin {
+export interface DiagnosticPlugin {
   getLocationAuthorizationStatus(): Promise<{
     status: string;
   }>;
@@ -28,4 +28,10 @@ export interface DiagnosticPluginPlugin {
   switchToLocationSettings(): Promise<void>;
 
   isCompassAvailable(): Promise<{ available: boolean }>;
+
+  isLocationAuthorized(): Promise<{ value: boolean }>;
+
+  getLocationAccuracyAuthorization(): Promise<{ value: "full" | "reduced" }>;
+
+  requestTemporaryFullAccuracyAuthorization(options: { purpose: string }): Promise<{ value: "full" | "reduced" }>;
 }
