@@ -51,4 +51,16 @@ export class DiagnosticPluginWeb extends WebPlugin implements DiagnosticPlugin {
   async isCompassAvailable(): Promise<{ available: boolean }> {
     return { available: false };
   }
+
+  async isLocationAuthorized(): Promise<{ value: boolean }> {
+  return { value: false };
+}
+
+async getLocationAccuracyAuthorization(): Promise<{ value: "full" | "reduced" }> {
+  return { value: "full" };
+}
+
+async requestTemporaryFullAccuracyAuthorization(): Promise<{ value: "full" | "reduced" }> {
+  return { value: "full" };
+}
 }
