@@ -73,12 +73,57 @@ jobs:
           cd diagnostic-cap-test
           npx cap sync ios
 
-      - name: List iOS app schemes (debug)
+      # -----------------------
+      # 3) iOS Simulator UI tests (no hardcoded scheme)
+      # -----------------------
+      - name: List iOS app schemes + pick a testable scheme
+        id: pick
         shell: bash
         run: |
           set -euo pipefail
           cd diagnostic-cap-test/ios/App
-          xcodebuild -list
+
+          echo "== xcodebuild -list (project) =="
+          xcodebuild -list -project App.xcodeproj
+
+          # Prefer explicit UI test scheme names if present
+          SCHEME="$(xcodebuild -list -project App.xcodeproj \
+            | awk '/Schemes:/{flag=1;next} flag && NF{print $1}' \
+            | tr -d '\r' \
+            | awk '
+                $0=="AppUITests"{print; exit}
+                $0 ~ /UITests/ {print; exit}
+              ')"
+
+          # Fallback: first scheme that is test-enabled (has a Test action)
+          if [[ -z "${SCHEME:-}" ]]; then
+            echo "No obvious *UITests scheme found; searching for a test-enabled scheme..."
+
+            # Extract schemes
+            mapfile -t SCHEMES < <(xcodebuild -list -project App.xcodeproj \
+              | awk '/Schemes:/{flag=1;next} flag && NF{print $1}' \
+              | tr -d '\r')
+
+            for s in "${SCHEMES[@]}"; do
+              echo "Checking scheme for test action: $s"
+              if xcodebuild -showBuildSettings -project App.xcodeproj -scheme "$s" >/dev/null 2>&1; then
+                # If running 'test' doesn't immediately error about scheme not configured, we accept it.
+                if xcodebuild -project App.xcodeproj -scheme "$s" -destination 'platform=iOS Simulator,name=iPhone 15' -configuration Debug test -dry-run >/dev/null 2>&1; then
+                  SCHEME="$s"
+                  break
+                fi
+              fi
+            done
+          fi
+
+          if [[ -z "${SCHEME:-}" ]]; then
+            echo "ERROR: Could not find any scheme configured for the test action."
+            echo "Tip: ensure the UI test target is part of a shared scheme in App.xcodeproj."
+            exit 1
+          fi
+
+          echo "Selected test scheme: $SCHEME"
+          echo "scheme=$SCHEME" >> "$GITHUB_OUTPUT"
 
       - name: Run iOS UI tests (Simulator)
         shell: bash
@@ -88,7 +133,7 @@ jobs:
 
           xcodebuild \
             -project App.xcodeproj \
-            -scheme App \
+            -scheme "${{ steps.pick.outputs.scheme }}" \
             -destination 'platform=iOS Simulator,name=iPhone 15' \
             -configuration Debug \
             test
