@@ -23,7 +23,6 @@ jobs:
       - name: Typecheck
         run: npx tsc -p tsconfig.json --noEmit
 
-      # Find the SwiftPM package root (where Package.swift actually lives)
       - name: Locate Package.swift
         id: pkg
         shell: bash
@@ -47,17 +46,17 @@ jobs:
           echo "Using package dir: $PKG_DIR"
           echo "pkg_dir=$PKG_DIR" >> "$GITHUB_OUTPUT"
 
-            - name: Build iOS (SwiftPM via Xcode)
-              shell: bash
-              run: |
-                set -euo pipefail
-                cd "${{ steps.pkg.outputs.pkg_dir }}"
-      
-                xcodebuild -version
-                xcodebuild -list
-      
-                xcodebuild \
-                  -scheme NoesisDiagnosticCapacitor \
-                  -destination 'generic/platform=iOS Simulator' \
-                  -configuration Debug \
-                  build
+      - name: Build iOS (SwiftPM via Xcode)
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "${{ steps.pkg.outputs.pkg_dir }}"
+
+          xcodebuild -version
+          xcodebuild -list
+
+          xcodebuild \
+            -scheme NoesisDiagnosticCapacitor \
+            -destination 'generic/platform=iOS Simulator' \
+            -configuration Debug \
+            build
