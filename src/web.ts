@@ -60,9 +60,8 @@ async getLocationAccuracyAuthorization(): Promise<{ value: "full" | "reduced" }>
   return { value: "full" };
 }
 
-async requestTemporaryFullAccuracyAuthorization(): Promise<{ value: "full" | "reduced" }> {
+async requestTemporaryFullAccuracyAuthorization(_options: { purpose: string }): Promise<{ value: "full" | "reduced" }> {
   return { value: "full" };
 }
-
 
 }
