@@ -1,4 +1,4 @@
-name: iOS Build (Xcode)
+name: iOS Build + Simulator Smoke Test
 
 on:
   push:
@@ -17,40 +17,28 @@ jobs:
         with:
           node-version: 20
 
-      - name: Install JS deps
-        run: npm ci
-
-      - name: Typecheck
-        run: npx tsc -p tsconfig.json --noEmit
-
-      - name: Locate Package.swift
-        id: pkg
+      # -----------------------
+      # 1) Plugin (diagnostic-capacitor/)
+      # -----------------------
+      - name: Install plugin deps
         shell: bash
         run: |
           set -euo pipefail
-          echo "Repo tree (top-level):"
-          ls -la
+          cd diagnostic-capacitor
+          npm ci
 
-          echo "Looking for Package.swift..."
-          PKG_FILE="$(find . -maxdepth 6 -name Package.swift -print -quit || true)"
-
-          if [[ -z "$PKG_FILE" ]]; then
-            echo "ERROR: Package.swift not found anywhere in repo (maxdepth 6)."
-            echo "Dumping ios/ (if exists):"
-            ls -la ios || true
-            exit 1
-          fi
-
-          PKG_DIR="$(dirname "$PKG_FILE")"
-          echo "Found Package.swift at: $PKG_FILE"
-          echo "Using package dir: $PKG_DIR"
-          echo "pkg_dir=$PKG_DIR" >> "$GITHUB_OUTPUT"
-
-      - name: Build iOS (SwiftPM via Xcode)
+      - name: Typecheck plugin
         shell: bash
         run: |
           set -euo pipefail
-          cd "${{ steps.pkg.outputs.pkg_dir }}"
+          cd diagnostic-capacitor
+          npx tsc -p tsconfig.json --noEmit
+
+      - name: Build iOS plugin (SwiftPM via Xcode)
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd diagnostic-capacitor
 
           xcodebuild -version
           xcodebuild -list
@@ -60,3 +48,47 @@ jobs:
             -destination 'generic/platform=iOS Simulator' \
             -configuration Debug \
             build
+
+      # -----------------------
+      # 2) Test app (diagnostic-cap-test/)
+      # -----------------------
+      - name: Install test app deps
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd diagnostic-cap-test
+          npm ci
+
+      - name: Build test app web assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd diagnostic-cap-test
+          npm run build
+
+      - name: Capacitor sync (iOS)
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd diagnostic-cap-test
+          npx cap sync ios
+
+      - name: List iOS app schemes (debug)
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd diagnostic-cap-test/ios/App
+          xcodebuild -list
+
+      - name: Run iOS UI tests (Simulator)
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd diagnostic-cap-test/ios/App
+
+          xcodebuild \
+            -project App.xcodeproj \
+            -scheme App \
+            -destination 'platform=iOS Simulator,name=iPhone 15' \
+            -configuration Debug \
+            test
