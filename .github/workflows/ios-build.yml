@@ -22,20 +22,8 @@ jobs:
       - name: Compile TypeScript
         run: npx tsc
         
-      - name: Install CocoaPods
-        run: sudo gem install cocoapods
-
-      - name: Pod install
+      - name: Build iOS plugin
         run: |
           cd ios
-          pod install
-
-      - name: Build iOS
-        run: |
-          cd ios
-          xcodebuild \
-            -workspace App.xcworkspace \
-            -scheme App \
-            -configuration Debug \
-            -sdk iphonesimulator \
-            build
+          xcodebuild -scheme DiagnosticPlugin -sdk iphonesimulator build
+      
