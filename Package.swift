@@ -7,22 +7,22 @@ let package = Package(
     products: [
         .library(
             name: "NoesisDiagnosticCapacitor",
-            targets: ["DiagnosticPluginPlugin"])
+            targets: ["DiagnosticPlugin"])
     ],
     dependencies: [
         .package(url: "https://github.com/ionic-team/capacitor-swift-pm.git", from: "8.0.0")
     ],
     targets: [
         .target(
-            name: "DiagnosticPluginPlugin",
+            name: "DiagnosticPlugin",
             dependencies: [
                 .product(name: "Capacitor", package: "capacitor-swift-pm"),
                 .product(name: "Cordova", package: "capacitor-swift-pm")
             ],
-            path: "ios/Sources/DiagnosticPluginPlugin"),
+            path: "ios/Sources/DiagnosticPlugin"),
         .testTarget(
-            name: "DiagnosticPluginPluginTests",
-            dependencies: ["DiagnosticPluginPlugin"],
-            path: "ios/Tests/DiagnosticPluginPluginTests")
+            name: "DiagnosticPluginTests",
+            dependencies: ["DiagnosticPlugin"],
+            path: "ios/Tests/DiagnosticPluginTests")
     ]
 )
