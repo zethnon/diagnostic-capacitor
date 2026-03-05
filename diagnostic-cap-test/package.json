@@ -3,15 +3,14 @@
   "version": "1.0.0",
   "description": "An Amazing Capacitor App",
   "type": "module",
-  "keywords": [
-    "capacitor",
-    "mobile"
-  ],
+  "keywords": ["capacitor", "mobile"],
   "scripts": {
     "start": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "cap:sync": "npm run build && npx cap sync android"
+    "cap:sync:android": "npm run build && npx cap sync android",
+    "cap:sync:ios": "npm run build && npx cap sync ios",
+    "cap:sync": "npm run build && npx cap sync"
   },
   "dependencies": {
     "@capacitor/android": "^8.1.0",
@@ -19,7 +18,8 @@
     "@capacitor/core": "latest",
     "@capacitor/ios": "^8.1.0",
     "@capacitor/splash-screen": "latest",
-    "@noesis/diagnostic-capacitor": "file:../diagnostic-capacitor/diagnostic-capacitor"
+
+    "@noesis/diagnostic-capacitor": "file:../diagnostic-capacitor"
   },
   "devDependencies": {
     "@capacitor/cli": "latest",
