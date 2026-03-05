@@ -87,17 +87,14 @@ jobs:
           set -euo pipefail
           cd diagnostic-cap-test/ios/App
 
-          # Fail fast if the UI test target isn't actually part of the Xcode project
           if ! xcodebuild -list -project App.xcodeproj | grep -q "AppUITests"; then
             echo "ERROR: AppUITests target/scheme not found in App.xcodeproj."
-            echo "You have the AppUITests FOLDER in the repo, but the Xcode project does not include it as a test target."
-            echo "Fix: add a UI Test target to the Xcode project (project.pbxproj) so xcodebuild can run tests in CI."
             exit 1
           fi
 
           xcodebuild \
             -project App.xcodeproj \
             -scheme AppUITests \
-            -destination 'platform=iOS Simulator,name=Any iOS Simulator Device' \
+            -destination 'platform=iOS Simulator,name=iPhone 16' \
             -configuration Debug \
             test
