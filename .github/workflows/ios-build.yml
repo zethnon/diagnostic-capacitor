@@ -21,17 +21,23 @@ jobs:
       # 1) Plugin (diagnostic-capacitor/)
       # -----------------------
       - name: Install plugin deps
+        shell: bash
         run: |
+          set -euo pipefail
           cd diagnostic-capacitor
           npm ci
 
       - name: Typecheck plugin
+        shell: bash
         run: |
+          set -euo pipefail
           cd diagnostic-capacitor
           npx tsc -p tsconfig.json --noEmit
 
       - name: Build iOS plugin (SwiftPM via Xcode)
+        shell: bash
         run: |
+          set -euo pipefail
           cd diagnostic-capacitor
           xcodebuild -version
           xcodebuild -list
@@ -45,17 +51,23 @@ jobs:
       # 2) Test app (diagnostic-cap-test/)
       # -----------------------
       - name: Install test app deps
+        shell: bash
         run: |
+          set -euo pipefail
           cd diagnostic-cap-test
           npm ci
 
       - name: Build test app web assets
+        shell: bash
         run: |
+          set -euo pipefail
           cd diagnostic-cap-test
           npm run build
 
       - name: Capacitor sync (iOS)
+        shell: bash
         run: |
+          set -euo pipefail
           cd diagnostic-cap-test
           npx cap sync ios
 
@@ -63,25 +75,26 @@ jobs:
       # 3) Assert we have a UI test target, then run it
       # -----------------------
       - name: List iOS project (targets/schemes)
+        shell: bash
         run: |
+          set -euo pipefail
           cd diagnostic-cap-test/ios/App
           xcodebuild -list -project App.xcodeproj
 
       - name: Run iOS UI tests (Simulator)
+        shell: bash
         run: |
+          set -euo pipefail
           cd diagnostic-cap-test/ios/App
 
-          # Fail fast if the UI test target isn't actually part of the Xcode project
           if ! xcodebuild -list -project App.xcodeproj | grep -q "AppUITests"; then
             echo "ERROR: AppUITests target/scheme not found in App.xcodeproj."
-            echo "You have the AppUITests FOLDER in the repo, but the Xcode project does not include it as a test target."
-            echo "Fix: add a UI Test target to the Xcode project (project.pbxproj) so xcodebuild can run tests in CI."
             exit 1
           fi
 
           xcodebuild \
             -project App.xcodeproj \
             -scheme AppUITests \
-            -destination 'platform=iOS Simulator,name=iPhone 15' \
+            -destination 'platform=iOS Simulator,name=iPhone 16' \
             -configuration Debug \
             test
