@@ -1,4 +1,4 @@
-name: iOS Build (Xcode)
+name: iOS Build + Simulator Smoke Test
 
 on:
   push:
@@ -15,48 +15,73 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
-      - name: Install JS deps
-        run: npm ci
-
-      - name: Typecheck
-        run: npx tsc -p tsconfig.json --noEmit
-
-      - name: Locate Package.swift
-        id: pkg
-        shell: bash
+      # -----------------------
+      # 1) Plugin (diagnostic-capacitor/)
+      # -----------------------
+      - name: Install plugin deps
         run: |
-          set -euo pipefail
-          echo "Repo tree (top-level):"
-          ls -la
+          cd diagnostic-capacitor
+          npm ci
 
-          echo "Looking for Package.swift..."
-          PKG_FILE="$(find . -maxdepth 6 -name Package.swift -print -quit || true)"
-
-          if [[ -z "$PKG_FILE" ]]; then
-            echo "ERROR: Package.swift not found anywhere in repo (maxdepth 6)."
-            echo "Dumping ios/ (if exists):"
-            ls -la ios || true
-            exit 1
-          fi
-
-          PKG_DIR="$(dirname "$PKG_FILE")"
-          echo "Found Package.swift at: $PKG_FILE"
-          echo "Using package dir: $PKG_DIR"
-          echo "pkg_dir=$PKG_DIR" >> "$GITHUB_OUTPUT"
-
-      - name: Build iOS (SwiftPM via Xcode)
-        shell: bash
+      - name: Typecheck plugin
         run: |
-          set -euo pipefail
-          cd "${{ steps.pkg.outputs.pkg_dir }}"
+          cd diagnostic-capacitor
+          npx tsc -p tsconfig.json --noEmit
 
+      - name: Build iOS plugin (SwiftPM via Xcode)
+        run: |
+          cd diagnostic-capacitor
           xcodebuild -version
           xcodebuild -list
-
           xcodebuild \
             -scheme NoesisDiagnosticCapacitor \
             -destination 'generic/platform=iOS Simulator' \
             -configuration Debug \
             build
+
+      # -----------------------
+      # 2) Test app (diagnostic-cap-test/)
+      # -----------------------
+      - name: Install test app deps
+        run: |
+          cd diagnostic-cap-test
+          npm ci
+
+      - name: Build test app web assets
+        run: |
+          cd diagnostic-cap-test
+          npm run build
+
+      - name: Capacitor sync (iOS)
+        run: |
+          cd diagnostic-cap-test
+          npx cap sync ios
+
+      # -----------------------
+      # 3) Assert we have a UI test target, then run it
+      # -----------------------
+      - name: List iOS project (targets/schemes)
+        run: |
+          cd diagnostic-cap-test/ios/App
+          xcodebuild -list -project App.xcodeproj
+
+      - name: Run iOS UI tests (Simulator)
+        run: |
+          cd diagnostic-cap-test/ios/App
+
+          # Fail fast if the UI test target isn't actually part of the Xcode project
+          if ! xcodebuild -list -project App.xcodeproj | grep -q "AppUITests"; then
+            echo "ERROR: AppUITests target/scheme not found in App.xcodeproj."
+            echo "You have the AppUITests FOLDER in the repo, but the Xcode project does not include it as a test target."
+            echo "Fix: add a UI Test target to the Xcode project (project.pbxproj) so xcodebuild can run tests in CI."
+            exit 1
+          fi
+
+          xcodebuild \
+            -project App.xcodeproj \
+            -scheme AppUITests \
+            -destination 'platform=iOS Simulator,name=iPhone 15' \
+            -configuration Debug \
+            test
