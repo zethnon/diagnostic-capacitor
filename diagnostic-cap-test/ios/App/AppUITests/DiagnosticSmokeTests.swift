@@ -14,4 +14,4 @@ final class DiagnosticSmokeTests: XCTestCase {
         XCTAssertTrue(ok.waitForExistence(timeout: 25) || fail.waitForExistence(timeout: 25))
         XCTAssertFalse(fail.exists, "Plugin call failed (DIAG_FAIL present)")
     }
-}
+}   
