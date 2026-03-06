@@ -57,7 +57,7 @@ public class DiagnosticPlugin extends Plugin implements BluetoothModule.Bluetoot
 
     @Override
     public void emitBluetoothStateChange(String state) {
-        JSONbject data = new JSObject();
+        JSObject data = new JSObject();
         data.put("state", state);
         notifyListeners("bluetoothStateChange", data);
     }
