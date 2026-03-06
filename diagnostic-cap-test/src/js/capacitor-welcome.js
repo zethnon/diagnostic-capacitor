@@ -161,35 +161,55 @@ async function safeCall(label, fn) {
 }
 
 function setMarker(text) {
-  // DOM marker
   let el = document.getElementById('diag-smoke');
   if (!el) {
     el = document.createElement('div');
     el.id = 'diag-smoke';
-    // make it easier to spot if you ever open the webview
-    el.style.cssText = 'position:fixed;top:0;left:0;z-index:99999;padding:6px;background:#000;color:#0f0;font-family:monospace;';
+    el.style.cssText =
+      'position:fixed;top:0;left:0;z-index:99999;padding:6px;background:#000;color:#0f0;font-family:monospace;';
     document.body.appendChild(el);
   }
   el.textContent = text;
-
-  // also set title (often easier to assert from native UI tests)
   document.title = text;
 }
 
 async function diagSmokeMarker() {
   setMarker('DIAG_PENDING');
   try {
-    const res = await DiagnosticPlugin.getLocationAuthorizationStatus();
-    setMarker(`DIAG_OK:${res && res.value ? res.value : 'ok'}`);
+    const location = await DiagnosticPlugin.getLocationAuthorizationStatus();
+    const bluetooth = await DiagnosticPlugin.getBluetoothState();
+    setMarker(
+      `DIAG_OK:LOC=${location?.status ?? 'unknown'}|BT=${bluetooth?.state ?? 'unknown'}`
+    );
   } catch (e) {
-    setMarker(`DIAG_FAIL:${(e && e.message) ? e.message : String(e)}`);
+    setMarker(`DIAG_FAIL:${e && e.message ? e.message : String(e)}`);
   }
 }
 
 (async () => {
-  console.log('=== DiagnosticPlugin LOCATION smoke test ===');
+  console.log('=== DiagnosticPlugin LOCATION + BLUETOOTH smoke test ===');
 
-  await safeCall('getLocationAuthorizationStatus', () => DiagnosticPlugin.getLocationAuthorizationStatus());
+  // -----------------------
+  // Bluetooth event listener
+  // -----------------------
+  let bluetoothListener = null;
+
+  try {
+    bluetoothListener = await DiagnosticPlugin.addListener('bluetoothStateChange', event => {
+      console.log('bluetoothStateChange', JSON.stringify(event));
+    });
+  } catch (e) {
+    console.error('addListener(bluetoothStateChange)', e);
+  }
+
+  // -----------------------
+  // Location
+  // -----------------------
+  console.log('--- LOCATION ---');
+
+  await safeCall('getLocationAuthorizationStatus', () =>
+    DiagnosticPlugin.getLocationAuthorizationStatus()
+  );
 
   await safeCall('getLocationMode', () => DiagnosticPlugin.getLocationMode());
   await safeCall('isLocationEnabled', () => DiagnosticPlugin.isLocationEnabled());
@@ -203,9 +223,15 @@ async function diagSmokeMarker() {
   await safeCall('isCompassAvailable', () => DiagnosticPlugin.isCompassAvailable());
 
   await safeCall('isLocationAuthorized', () => DiagnosticPlugin.isLocationAuthorized());
-  await safeCall('getLocationAccuracyAuthorization', () => DiagnosticPlugin.getLocationAccuracyAuthorization());
-  await safeCall('requestTemporaryFullAccuracyAuthorization(purpose="DiagCapTempFullAccuracy")', () =>
-    DiagnosticPlugin.requestTemporaryFullAccuracyAuthorization({ purpose: 'DiagCapTempFullAccuracy' })
+  await safeCall('getLocationAccuracyAuthorization', () =>
+    DiagnosticPlugin.getLocationAccuracyAuthorization()
+  );
+  await safeCall(
+    'requestTemporaryFullAccuracyAuthorization({purpose:"DiagCapTempFullAccuracy"})',
+    () =>
+      DiagnosticPlugin.requestTemporaryFullAccuracyAuthorization({
+        purpose: 'DiagCapTempFullAccuracy',
+      })
   );
 
   console.log('--- Request WHEN_IN_USE ---');
@@ -218,13 +244,66 @@ async function diagSmokeMarker() {
     DiagnosticPlugin.requestLocationAuthorization({ mode: 'always' })
   );
 
-  // These are manual/interactive flows; keep them for Android, but they can hang UX on iOS CI.
-  // Consider guarding them with a flag later.
   await safeCall('openLocationSettings()', () => DiagnosticPlugin.openLocationSettings());
   await safeCall('switchToLocationSettings()', () => DiagnosticPlugin.switchToLocationSettings());
 
-  // CI marker (must be last)
+  // -----------------------
+  // Bluetooth
+  // -----------------------
+  console.log('--- BLUETOOTH ---');
+
+  await safeCall('ensureBluetoothManager()', () => DiagnosticPlugin.ensureBluetoothManager());
+
+  await safeCall('getBluetoothState', () => DiagnosticPlugin.getBluetoothState());
+  await safeCall('isBluetoothAvailable', () => DiagnosticPlugin.isBluetoothAvailable());
+  await safeCall('isBluetoothEnabled', () => DiagnosticPlugin.isBluetoothEnabled());
+
+  await safeCall('hasBluetoothSupport', () => DiagnosticPlugin.hasBluetoothSupport());
+  await safeCall('hasBluetoothLESupport', () => DiagnosticPlugin.hasBluetoothLESupport());
+  await safeCall('hasBluetoothLEPeripheralSupport', () =>
+    DiagnosticPlugin.hasBluetoothLEPeripheralSupport()
+  );
+
+  await safeCall('getBluetoothAuthorizationStatus', () =>
+    DiagnosticPlugin.getBluetoothAuthorizationStatus()
+  );
+
+  await safeCall('getBluetoothAuthorizationStatuses', () =>
+    DiagnosticPlugin.getBluetoothAuthorizationStatuses()
+  );
+
+  await safeCall('requestBluetoothAuthorization()', () =>
+    DiagnosticPlugin.requestBluetoothAuthorization()
+  );
+
+  await safeCall('requestBluetoothAuthorization({permissions:["BLUETOOTH_SCAN"]})', () =>
+    DiagnosticPlugin.requestBluetoothAuthorization({
+      permissions: ['BLUETOOTH_SCAN'],
+    })
+  );
+
+  await safeCall('setBluetoothState({enable:true})', () =>
+    DiagnosticPlugin.setBluetoothState({ enable: true })
+  );
+
+  await safeCall('setBluetoothState({enable:false})', () =>
+    DiagnosticPlugin.setBluetoothState({ enable: false })
+  );
+
+  await safeCall('switchToBluetoothSettings()', () =>
+    DiagnosticPlugin.switchToBluetoothSettings()
+  );
+
+  // CI marker
   await diagSmokeMarker();
+
+  if (bluetoothListener && bluetoothListener.remove) {
+    try {
+      await bluetoothListener.remove();
+    } catch (e) {
+      console.error('remove bluetooth listener', e);
+    }
+  }
 
   console.log('=== Done ===');
 })();
