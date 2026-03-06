@@ -3,13 +3,13 @@ package com.noesis.diagnostic;
 import android.Manifest;
 import android.os.Build;
 
+import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 import com.getcapacitor.annotation.Permission;
 import com.getcapacitor.annotation.PermissionCallback;
-import com.getcapacitor.JSObject;
 
 import com.noesis.diagnostic.modules.BluetoothModule;
 import com.noesis.diagnostic.modules.LocationModule;
@@ -56,16 +56,18 @@ public class DiagnosticPlugin extends Plugin implements BluetoothModule.Bluetoot
     }
 
     @Override
+    protected void handleOnDestroy() {
+        if (bluetooth != null) {
+            bluetooth.handleOnDestroy();
+        }
+        super.handleOnDestroy();
+    }
+
+    @Override
     public void emitBluetoothStateChange(String state) {
         JSObject data = new JSObject();
         data.put("state", state);
         notifyListeners("bluetoothStateChange", data);
-    }
-
-    @Override
-    protected void handleOnDestroy() {
-        bluetooth.handleOnDestroy();
-        super.handleOnDestroy();
     }
 
     // -----------------------
@@ -215,12 +217,7 @@ public class DiagnosticPlugin extends Plugin implements BluetoothModule.Bluetoot
 
     @PluginMethod
     public void requestBluetoothAuthorization(PluginCall call) {
-        if (Build.VERSION.SDK_INT < 31) {
-            bluetooth.requestBluetoothAuthorization(call);
-            return;
-        }
-
-        requestPermissionForAlias("bluetooth", call, "onBluetoothPermissionResult");
+        bluetooth.requestBluetoothAuthorization(call);
     }
 
     @PluginMethod
@@ -236,5 +233,9 @@ public class DiagnosticPlugin extends Plugin implements BluetoothModule.Bluetoot
     @PermissionCallback
     private void onBluetoothPermissionResult(PluginCall call) {
         bluetooth.onBluetoothPermissionResult(call);
+    }
+
+    public void requestBluetoothPermissions(PluginCall call) {
+        requestPermissionForAlias("bluetooth", call, "onBluetoothPermissionResult");
     }
 }

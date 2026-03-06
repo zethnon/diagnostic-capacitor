@@ -26,6 +26,7 @@ public class BluetoothModule {
     }
 
     private static final String TAG = "DiagCap";
+    private static final String BLUETOOTH_PREFS = "DiagnosticBluetoothPrefs";
 
     private static final String BLUETOOTH_STATE_UNKNOWN = "unknown";
     private static final String BLUETOOTH_STATE_POWERED_ON = "powered_on";
@@ -42,6 +43,12 @@ public class BluetoothModule {
         "BLUETOOTH_ADVERTISE",
         "BLUETOOTH_CONNECT",
         "BLUETOOTH_SCAN"
+    };
+
+    private static final String[] BLUETOOTH_RUNTIME_PERMISSIONS = new String[] {
+        Manifest.permission.BLUETOOTH_ADVERTISE,
+        Manifest.permission.BLUETOOTH_CONNECT,
+        Manifest.permission.BLUETOOTH_SCAN
     };
 
     private final Plugin plugin;
@@ -114,7 +121,7 @@ public class BluetoothModule {
     }
 
     public void hasBluetoothLESupport(PluginCall call) {
-        PackageManager pm = plugin.getActivity().getPackageManager();
+        PackageManager pm = plugin.getContext().getPackageManager();
         JSObject ret = new JSObject();
         ret.put("supported", pm.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE));
         call.resolve(ret);
@@ -187,9 +194,42 @@ public class BluetoothModule {
     public void requestBluetoothAuthorization(PluginCall call) {
         if (Build.VERSION.SDK_INT < 31) {
             JSObject ret = new JSObject();
+            ret.put("status", hasLegacyBluetoothManifestPermission() ? STATUS_GRANTED : STATUS_DENIED_ALWAYS);
+            call.resolve(ret);
+            return;
+        }
+
+        if (plugin.getActivity() == null) {
+            call.reject("Activity unavailable");
+            return;
+        }
+
+        JSObject current_statuses = getBluetoothAuthorizationStatusesValue();
+        boolean all_granted = true;
+
+        for (String permission_name : BLUETOOTH_PERMISSION_NAMES) {
+            String value = current_statuses.getString(permission_name);
+            if (!STATUS_GRANTED.equals(value)) {
+                all_granted = false;
+                break;
+            }
+        }
+
+        if (all_granted) {
+            JSObject ret = new JSObject();
             ret.put("status", STATUS_GRANTED);
             call.resolve(ret);
+            return;
         }
+
+        markBluetoothPermissionsRequested();
+
+        if (plugin instanceof com.noesis.diagnostic.DiagnosticPlugin) {
+            ((com.noesis.diagnostic.DiagnosticPlugin) plugin).requestBluetoothPermissions(call);
+            return;
+        }
+
+        call.reject("Plugin does not support bluetooth permission requests");
     }
 
     public void onBluetoothPermissionResult(PluginCall call) {
@@ -214,7 +254,7 @@ public class BluetoothModule {
     }
 
     private boolean hasBluetoothSupportValue() {
-        PackageManager pm = plugin.getActivity().getPackageManager();
+        PackageManager pm = plugin.getContext().getPackageManager();
         return pm.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH);
     }
 
@@ -271,8 +311,8 @@ public class BluetoothModule {
                 getPermissionStatusForManifestPermission(Manifest.permission.BLUETOOTH_SCAN)
             );
         } else {
-            boolean has_manifest_permission = hasLegacyBluetoothManifestPermission();
-            String status = has_manifest_permission ? STATUS_GRANTED : STATUS_DENIED_ALWAYS;
+            boolean has_permission = hasLegacyBluetoothManifestPermission();
+            String status = has_permission ? STATUS_GRANTED : STATUS_DENIED_ALWAYS;
 
             for (String permission_name : BLUETOOTH_PERMISSION_NAMES) {
                 statuses.put(permission_name, status);
@@ -284,7 +324,7 @@ public class BluetoothModule {
 
     private String getBluetoothAuthorizationStatusValue() {
         if (Build.VERSION.SDK_INT < 31) {
-            return STATUS_GRANTED;
+            return hasLegacyBluetoothManifestPermission() ? STATUS_GRANTED : STATUS_DENIED_ALWAYS;
         }
 
         JSObject statuses = getBluetoothAuthorizationStatusesValue();
@@ -304,14 +344,14 @@ public class BluetoothModule {
             }
         }
 
-        if (any_denied_always) {
-            return STATUS_DENIED_ALWAYS;
+        if (any_not_determined) {
+            return STATUS_NOT_DETERMINED;
         }
         if (any_denied) {
             return STATUS_DENIED;
         }
-        if (any_not_determined) {
-            return STATUS_NOT_DETERMINED;
+        if (any_denied_always) {
+            return STATUS_DENIED_ALWAYS;
         }
 
         return STATUS_GRANTED;
@@ -327,6 +367,10 @@ public class BluetoothModule {
             return STATUS_GRANTED;
         }
 
+        if (!wasPermissionEverRequested(permission)) {
+            return STATUS_NOT_DETERMINED;
+        }
+
         if (plugin.getActivity() != null) {
             boolean should_show_rationale =
                 ActivityCompat.shouldShowRequestPermissionRationale(plugin.getActivity(), permission);
@@ -337,6 +381,25 @@ public class BluetoothModule {
         }
 
         return STATUS_DENIED_ALWAYS;
+    }
+
+    private boolean wasPermissionEverRequested(String permission) {
+        return plugin.getContext()
+            .getSharedPreferences(BLUETOOTH_PREFS, Context.MODE_PRIVATE)
+            .getBoolean("requested_" + permission, false);
+    }
+
+    private void markBluetoothPermissionsRequested() {
+        Context app_context = plugin.getContext().getApplicationContext();
+
+        android.content.SharedPreferences.Editor editor =
+            app_context.getSharedPreferences(BLUETOOTH_PREFS, Context.MODE_PRIVATE).edit();
+
+        for (String permission : BLUETOOTH_RUNTIME_PERMISSIONS) {
+            editor.putBoolean("requested_" + permission, true);
+        }
+
+        editor.apply();
     }
 
     private boolean hasLegacyBluetoothManifestPermission() {

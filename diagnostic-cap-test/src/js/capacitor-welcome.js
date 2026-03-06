@@ -176,10 +176,11 @@ function setMarker(text) {
 async function diagSmokeMarker() {
   setMarker('DIAG_PENDING');
   try {
-    const location = await DiagnosticPlugin.getLocationAuthorizationStatus();
     const bluetooth = await DiagnosticPlugin.getBluetoothState();
+    const auth = await DiagnosticPlugin.getBluetoothAuthorizationStatus();
+
     setMarker(
-      `DIAG_OK:LOC=${location?.status ?? 'unknown'}|BT=${bluetooth?.state ?? 'unknown'}`
+      `DIAG_OK:BT=${bluetooth?.state ?? 'unknown'}|AUTH=${auth?.status ?? 'unknown'}`
     );
   } catch (e) {
     setMarker(`DIAG_FAIL:${e && e.message ? e.message : String(e)}`);
@@ -187,11 +188,8 @@ async function diagSmokeMarker() {
 }
 
 (async () => {
-  console.log('=== DiagnosticPlugin LOCATION + BLUETOOTH smoke test ===');
+  console.log('=== DiagnosticPlugin BLUETOOTH permission smoke test ===');
 
-  // -----------------------
-  // Bluetooth event listener
-  // -----------------------
   let bluetoothListener = null;
 
   try {
@@ -202,54 +200,6 @@ async function diagSmokeMarker() {
     console.error('addListener(bluetoothStateChange)', e);
   }
 
-  // -----------------------
-  // Location
-  // -----------------------
-  console.log('--- LOCATION ---');
-
-  await safeCall('getLocationAuthorizationStatus', () =>
-    DiagnosticPlugin.getLocationAuthorizationStatus()
-  );
-
-  await safeCall('getLocationMode', () => DiagnosticPlugin.getLocationMode());
-  await safeCall('isLocationEnabled', () => DiagnosticPlugin.isLocationEnabled());
-  await safeCall('isLocationAvailable', () => DiagnosticPlugin.isLocationAvailable());
-
-  await safeCall('isGpsLocationEnabled', () => DiagnosticPlugin.isGpsLocationEnabled());
-  await safeCall('isNetworkLocationEnabled', () => DiagnosticPlugin.isNetworkLocationEnabled());
-  await safeCall('isGpsLocationAvailable', () => DiagnosticPlugin.isGpsLocationAvailable());
-  await safeCall('isNetworkLocationAvailable', () => DiagnosticPlugin.isNetworkLocationAvailable());
-
-  await safeCall('isCompassAvailable', () => DiagnosticPlugin.isCompassAvailable());
-
-  await safeCall('isLocationAuthorized', () => DiagnosticPlugin.isLocationAuthorized());
-  await safeCall('getLocationAccuracyAuthorization', () =>
-    DiagnosticPlugin.getLocationAccuracyAuthorization()
-  );
-  await safeCall(
-    'requestTemporaryFullAccuracyAuthorization({purpose:"DiagCapTempFullAccuracy"})',
-    () =>
-      DiagnosticPlugin.requestTemporaryFullAccuracyAuthorization({
-        purpose: 'DiagCapTempFullAccuracy',
-      })
-  );
-
-  console.log('--- Request WHEN_IN_USE ---');
-  await safeCall('requestLocationAuthorization({mode:"when_in_use"})', () =>
-    DiagnosticPlugin.requestLocationAuthorization({ mode: 'when_in_use' })
-  );
-
-  console.log('--- Request ALWAYS ---');
-  await safeCall('requestLocationAuthorization({mode:"always"})', () =>
-    DiagnosticPlugin.requestLocationAuthorization({ mode: 'always' })
-  );
-
-  //await safeCall('openLocationSettings()', () => DiagnosticPlugin.openLocationSettings());
-  //await safeCall('switchToLocationSettings()', () => DiagnosticPlugin.switchToLocationSettings());
-
-  // -----------------------
-  // Bluetooth
-  // -----------------------
   console.log('--- BLUETOOTH ---');
 
   await safeCall('ensureBluetoothManager()', () => DiagnosticPlugin.ensureBluetoothManager());
@@ -264,35 +214,25 @@ async function diagSmokeMarker() {
     DiagnosticPlugin.hasBluetoothLEPeripheralSupport()
   );
 
-  await safeCall('getBluetoothAuthorizationStatus', () =>
+  console.log('--- BT AUTH BEFORE REQUEST ---');
+  await safeCall('getBluetoothAuthorizationStatus [before]', () =>
     DiagnosticPlugin.getBluetoothAuthorizationStatus()
   );
 
-  await safeCall('getBluetoothAuthorizationStatuses', () =>
-    DiagnosticPlugin.getBluetoothAuthorizationStatuses()
-  );
-
+  console.log('--- BT REQUEST AUTH ---');
   await safeCall('requestBluetoothAuthorization()', () =>
     DiagnosticPlugin.requestBluetoothAuthorization()
   );
 
-  await safeCall('requestBluetoothAuthorization({permissions:["BLUETOOTH_SCAN"]})', () =>
-    DiagnosticPlugin.requestBluetoothAuthorization({
-      permissions: ['BLUETOOTH_SCAN'],
-    })
+  console.log('--- BT AUTH AFTER REQUEST ---');
+  await safeCall('getBluetoothAuthorizationStatus [after]', () =>
+    DiagnosticPlugin.getBluetoothAuthorizationStatus()
   );
 
-  await safeCall('setBluetoothState({enable:true})', () =>
-    DiagnosticPlugin.setBluetoothState({ enable: true })
+  await safeCall('getBluetoothAuthorizationStatuses [after]', () =>
+    DiagnosticPlugin.getBluetoothAuthorizationStatuses()
   );
 
-  await safeCall('setBluetoothState({enable:false})', () =>
-    DiagnosticPlugin.setBluetoothState({ enable: false })
-  );
-
-  //await safeCall('switchToBluetoothSettings()', () => DiagnosticPlugin.switchToBluetoothSettings());
-
-  // CI marker
   await diagSmokeMarker();
 
   if (bluetoothListener && bluetoothListener.remove) {
