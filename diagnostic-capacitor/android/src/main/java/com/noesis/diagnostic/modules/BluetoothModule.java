@@ -10,6 +10,7 @@ import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.provider.Settings;
+import android.util.Log;
 
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
@@ -19,6 +20,12 @@ import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 
 public class BluetoothModule {
+
+    public interface BluetoothEventEmitter {
+        void emitBluetoothStateChange(String state);
+    }
+
+    private static final String TAG = "DiagCap";
 
     private static final String BLUETOOTH_STATE_UNKNOWN = "unknown";
     private static final String BLUETOOTH_STATE_POWERED_ON = "powered_on";
@@ -30,7 +37,6 @@ public class BluetoothModule {
     private static final String STATUS_DENIED = "denied";
     private static final String STATUS_DENIED_ALWAYS = "denied_always";
     private static final String STATUS_NOT_DETERMINED = "not_determined";
-    private final BluetoothEventEmitter event_emitter;
 
     private static final String[] BLUETOOTH_PERMISSION_NAMES = new String[] {
         "BLUETOOTH_ADVERTISE",
@@ -38,12 +44,10 @@ public class BluetoothModule {
         "BLUETOOTH_SCAN"
     };
 
-    
-
     private final Plugin plugin;
-    private String current_bluetooth_state;
+    private final BluetoothEventEmitter event_emitter;
 
-    android.util.Log.d("DiagCap", "BluetoothModule.load()");
+    private String current_bluetooth_state;
 
     public BluetoothModule(Plugin plugin, BluetoothEventEmitter event_emitter) {
         this.plugin = plugin;
@@ -60,13 +64,16 @@ public class BluetoothModule {
     };
 
     public void load() {
+        Log.d(TAG, "BluetoothModule.load()");
+
         try {
             plugin.getContext().registerReceiver(
                 bluetooth_state_change_receiver,
                 new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED)
             );
             current_bluetooth_state = getBluetoothStateValue();
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            Log.d(TAG, "BluetoothModule.load() registerReceiver failed: " + e.getMessage());
         }
     }
 
@@ -164,7 +171,8 @@ public class BluetoothModule {
     }
 
     public void getBluetoothState(PluginCall call) {
-        android.util.Log.d("DiagCap", "getBluetoothState called");
+        Log.d(TAG, "getBluetoothState called");
+
         JSObject ret = new JSObject();
         ret.put("state", getBluetoothStateValue());
         call.resolve(ret);
@@ -181,7 +189,6 @@ public class BluetoothModule {
             JSObject ret = new JSObject();
             ret.put("status", STATUS_GRANTED);
             call.resolve(ret);
-            return;
         }
     }
 
@@ -241,7 +248,6 @@ public class BluetoothModule {
 
             if (current_bluetooth_state == null || !current_bluetooth_state.equals(new_state)) {
                 current_bluetooth_state = new_state;
-
                 event_emitter.emitBluetoothStateChange(new_state);
             }
         } catch (Exception ignored) {
@@ -338,9 +344,5 @@ public class BluetoothModule {
 
         return context.checkCallingOrSelfPermission(Manifest.permission.BLUETOOTH) == PackageManager.PERMISSION_GRANTED
             || context.checkCallingOrSelfPermission(Manifest.permission.BLUETOOTH_ADMIN) == PackageManager.PERMISSION_GRANTED;
-    }
-
-    public interface BluetoothEventEmitter {
-        void emitBluetoothStateChange(String state);
     }
 }
