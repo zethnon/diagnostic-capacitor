@@ -9,6 +9,7 @@ import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 import com.getcapacitor.annotation.Permission;
 import com.getcapacitor.annotation.PermissionCallback;
+import com.getcapacitor.JSObject;
 
 import com.noesis.diagnostic.modules.BluetoothModule;
 import com.noesis.diagnostic.modules.LocationModule;
@@ -56,7 +57,7 @@ public class DiagnosticPlugin extends Plugin implements BluetoothModule.Bluetoot
 
     @Override
     public void emitBluetoothStateChange(String state) {
-        JSObject data = new JSObject();
+        JSONbject data = new JSObject();
         data.put("state", state);
         notifyListeners("bluetoothStateChange", data);
     }
