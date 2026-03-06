@@ -5,6 +5,11 @@ import Capacitor
 public class DiagnosticPlugin: CAPPlugin {
 
     private lazy var location = LocationModule()
+    private lazy var bluetooth = BluetoothModule(plugin: self)
+
+    // -----------------------
+    // Location
+    // -----------------------
 
     @objc func getLocationAuthorizationStatus(_ call: CAPPluginCall) { location.getLocationAuthorizationStatus(call) }
     @objc func requestLocationAuthorization(_ call: CAPPluginCall) { location.requestLocationAuthorization(call) }
@@ -27,4 +32,29 @@ public class DiagnosticPlugin: CAPPlugin {
     @objc func isLocationAuthorized(_ call: CAPPluginCall) { location.isLocationAuthorized(call) }
     @objc func getLocationAccuracyAuthorization(_ call: CAPPluginCall) { location.getLocationAccuracyAuthorization(call) }
     @objc func requestTemporaryFullAccuracyAuthorization(_ call: CAPPluginCall) { location.requestTemporaryFullAccuracyAuthorization(call) }
+
+    // -----------------------
+    // Bluetooth
+    // -----------------------
+
+    @objc func switchToBluetoothSettings(_ call: CAPPluginCall) { bluetooth.switchToBluetoothSettings(call) }
+
+    @objc func isBluetoothAvailable(_ call: CAPPluginCall) { bluetooth.isBluetoothAvailable(call) }
+    @objc func isBluetoothEnabled(_ call: CAPPluginCall) { bluetooth.isBluetoothEnabled(call) }
+
+    @objc func hasBluetoothSupport(_ call: CAPPluginCall) { bluetooth.hasBluetoothSupport(call) }
+    @objc func hasBluetoothLESupport(_ call: CAPPluginCall) { bluetooth.hasBluetoothLESupport(call) }
+    @objc func hasBluetoothLEPeripheralSupport(_ call: CAPPluginCall) { bluetooth.hasBluetoothLEPeripheralSupport(call) }
+
+    @objc func setBluetoothState(_ call: CAPPluginCall) { bluetooth.setBluetoothState(call) }
+
+    @objc func getBluetoothState(_ call: CAPPluginCall) { bluetooth.getBluetoothState(call) }
+
+    @objc func getBluetoothAuthorizationStatuses(_ call: CAPPluginCall) { bluetooth.getBluetoothAuthorizationStatuses(call) }
+
+    @objc func requestBluetoothAuthorization(_ call: CAPPluginCall) { bluetooth.requestBluetoothAuthorization(call) }
+
+    @objc func ensureBluetoothManager(_ call: CAPPluginCall) { bluetooth.ensureBluetoothManager(call) }
+
+    @objc func getBluetoothAuthorizationStatus(_ call: CAPPluginCall) { bluetooth.getBluetoothAuthorizationStatus(call) }
 }
