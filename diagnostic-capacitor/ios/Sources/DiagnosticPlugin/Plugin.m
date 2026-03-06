@@ -2,6 +2,9 @@
 #import <Capacitor/Capacitor.h>
 
 CAP_PLUGIN(DiagnosticPlugin, "DiagnosticPlugin",
+    // -----------------------
+    // Location
+    // -----------------------
     CAP_PLUGIN_METHOD(getLocationAuthorizationStatus, CAPPluginReturnPromise);
     CAP_PLUGIN_METHOD(requestLocationAuthorization, CAPPluginReturnPromise);
     CAP_PLUGIN_METHOD(openLocationSettings, CAPPluginReturnPromise);
@@ -21,4 +24,20 @@ CAP_PLUGIN(DiagnosticPlugin, "DiagnosticPlugin",
     CAP_PLUGIN_METHOD(isLocationAuthorized, CAPPluginReturnPromise);
     CAP_PLUGIN_METHOD(getLocationAccuracyAuthorization, CAPPluginReturnPromise);
     CAP_PLUGIN_METHOD(requestTemporaryFullAccuracyAuthorization, CAPPluginReturnPromise);
+
+    // -----------------------
+    // Bluetooth
+    // -----------------------
+    CAP_PLUGIN_METHOD(switchToBluetoothSettings, CAPPluginReturnPromise);
+    CAP_PLUGIN_METHOD(isBluetoothAvailable, CAPPluginReturnPromise);
+    CAP_PLUGIN_METHOD(isBluetoothEnabled, CAPPluginReturnPromise);
+    CAP_PLUGIN_METHOD(hasBluetoothSupport, CAPPluginReturnPromise);
+    CAP_PLUGIN_METHOD(hasBluetoothLESupport, CAPPluginReturnPromise);
+    CAP_PLUGIN_METHOD(hasBluetoothLEPeripheralSupport, CAPPluginReturnPromise);
+    CAP_PLUGIN_METHOD(setBluetoothState, CAPPluginReturnPromise);
+    CAP_PLUGIN_METHOD(getBluetoothState, CAPPluginReturnPromise);
+    CAP_PLUGIN_METHOD(getBluetoothAuthorizationStatuses, CAPPluginReturnPromise);
+    CAP_PLUGIN_METHOD(requestBluetoothAuthorization, CAPPluginReturnPromise);
+    CAP_PLUGIN_METHOD(ensureBluetoothManager, CAPPluginReturnPromise);
+    CAP_PLUGIN_METHOD(getBluetoothAuthorizationStatus, CAPPluginReturnPromise);
 )
