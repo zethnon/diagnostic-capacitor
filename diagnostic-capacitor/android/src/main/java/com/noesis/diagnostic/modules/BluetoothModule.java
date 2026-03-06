@@ -176,8 +176,6 @@ public class BluetoothModule {
             call.resolve(ret);
             return;
         }
-
-        plugin.requestPermissionForAlias("bluetooth", call, "onBluetoothPermissionResult");
     }
 
     public void onBluetoothPermissionResult(PluginCall call) {

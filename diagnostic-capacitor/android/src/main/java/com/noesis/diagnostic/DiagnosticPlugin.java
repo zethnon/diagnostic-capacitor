@@ -207,7 +207,12 @@ public class DiagnosticPlugin extends Plugin {
 
     @PluginMethod
     public void requestBluetoothAuthorization(PluginCall call) {
-        bluetooth.requestBluetoothAuthorization(call);
+        if (Build.VERSION.SDK_INT < 31) {
+            bluetooth.requestBluetoothAuthorization(call);
+            return;
+        }
+
+        requestPermissionForAlias("bluetooth", call, "onBluetoothPermissionResult");
     }
 
     @PluginMethod
