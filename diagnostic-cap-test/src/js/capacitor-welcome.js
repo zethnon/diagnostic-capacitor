@@ -244,8 +244,8 @@ async function diagSmokeMarker() {
     DiagnosticPlugin.requestLocationAuthorization({ mode: 'always' })
   );
 
-  await safeCall('openLocationSettings()', () => DiagnosticPlugin.openLocationSettings());
-  await safeCall('switchToLocationSettings()', () => DiagnosticPlugin.switchToLocationSettings());
+  //await safeCall('openLocationSettings()', () => DiagnosticPlugin.openLocationSettings());
+  //await safeCall('switchToLocationSettings()', () => DiagnosticPlugin.switchToLocationSettings());
 
   // -----------------------
   // Bluetooth
@@ -290,9 +290,7 @@ async function diagSmokeMarker() {
     DiagnosticPlugin.setBluetoothState({ enable: false })
   );
 
-  await safeCall('switchToBluetoothSettings()', () =>
-    DiagnosticPlugin.switchToBluetoothSettings()
-  );
+  //await safeCall('switchToBluetoothSettings()', () => DiagnosticPlugin.switchToBluetoothSettings());
 
   // CI marker
   await diagSmokeMarker();

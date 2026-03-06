@@ -38,8 +38,12 @@ public class BluetoothModule {
         "BLUETOOTH_SCAN"
     };
 
+    
+
     private final Plugin plugin;
     private String current_bluetooth_state;
+
+    android.util.Log.d("DiagCap", "BluetoothModule.load()");
 
     public BluetoothModule(Plugin plugin, BluetoothEventEmitter event_emitter) {
         this.plugin = plugin;
@@ -160,6 +164,7 @@ public class BluetoothModule {
     }
 
     public void getBluetoothState(PluginCall call) {
+        android.util.Log.d("DiagCap", "getBluetoothState called");
         JSObject ret = new JSObject();
         ret.put("state", getBluetoothStateValue());
         call.resolve(ret);
