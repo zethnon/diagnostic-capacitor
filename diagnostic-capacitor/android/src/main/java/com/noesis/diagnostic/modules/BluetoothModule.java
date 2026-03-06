@@ -30,6 +30,7 @@ public class BluetoothModule {
     private static final String STATUS_DENIED = "denied";
     private static final String STATUS_DENIED_ALWAYS = "denied_always";
     private static final String STATUS_NOT_DETERMINED = "not_determined";
+    private final BluetoothEventEmitter event_emitter;
 
     private static final String[] BLUETOOTH_PERMISSION_NAMES = new String[] {
         "BLUETOOTH_ADVERTISE",
@@ -40,8 +41,9 @@ public class BluetoothModule {
     private final Plugin plugin;
     private String current_bluetooth_state;
 
-    public BluetoothModule(Plugin plugin) {
+    public BluetoothModule(Plugin plugin, BluetoothEventEmitter event_emitter) {
         this.plugin = plugin;
+        this.event_emitter = event_emitter;
     }
 
     private final BroadcastReceiver bluetooth_state_change_receiver = new BroadcastReceiver() {
@@ -235,9 +237,7 @@ public class BluetoothModule {
             if (current_bluetooth_state == null || !current_bluetooth_state.equals(new_state)) {
                 current_bluetooth_state = new_state;
 
-                JSObject data = new JSObject();
-                data.put("state", new_state);
-                plugin.notifyListeners("bluetoothStateChange", data);
+                event_emitter.emitBluetoothStateChange(new_state);
             }
         } catch (Exception ignored) {
         }
@@ -333,5 +333,9 @@ public class BluetoothModule {
 
         return context.checkCallingOrSelfPermission(Manifest.permission.BLUETOOTH) == PackageManager.PERMISSION_GRANTED
             || context.checkCallingOrSelfPermission(Manifest.permission.BLUETOOTH_ADMIN) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    public interface BluetoothEventEmitter {
+        void emitBluetoothStateChange(String state);
     }
 }

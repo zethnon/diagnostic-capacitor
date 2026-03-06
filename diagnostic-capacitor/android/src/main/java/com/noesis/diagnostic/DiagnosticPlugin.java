@@ -39,7 +39,7 @@ import com.noesis.diagnostic.modules.LocationModule;
         )
     }
 )
-public class DiagnosticPlugin extends Plugin {
+public class DiagnosticPlugin extends Plugin implements BluetoothModule.BluetoothEventEmitter {
 
     private LocationModule location;
     private BluetoothModule bluetooth;
@@ -49,9 +49,16 @@ public class DiagnosticPlugin extends Plugin {
         super.load();
 
         location = new LocationModule(this);
-        bluetooth = new BluetoothModule(this);
+        bluetooth = new BluetoothModule(this, this);
 
         bluetooth.load();
+    }
+
+    @Override
+    public void emitBluetoothStateChange(String state) {
+        JSObject data = new JSObject();
+        data.put("state", state);
+        notifyListeners("bluetoothStateChange", data);
     }
 
     @Override
