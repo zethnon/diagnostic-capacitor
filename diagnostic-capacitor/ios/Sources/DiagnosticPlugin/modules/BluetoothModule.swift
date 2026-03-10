@@ -11,8 +11,13 @@ class BluetoothModule: NSObject, CBCentralManagerDelegate {
     private let STATUS_DENIED = "denied"
     private let STATUS_NOT_DETERMINED = "not_determined"
 
+    private let BLUETOOTH_STATE_UNKNOWN = "unknown"
+    private let BLUETOOTH_STATE_POWERED_ON = "powered_on"
+    private let BLUETOOTH_STATE_POWERED_OFF = "powered_off"
+
     private var bluetoothManager: CBCentralManager?
     private var lastBluetoothState: String?
+    private var pendingBluetoothAuthorizationCall: CAPPluginCall?
 
     init(plugin: CAPPlugin) {
         self.plugin = plugin
@@ -34,36 +39,41 @@ class BluetoothModule: NSObject, CBCentralManagerDelegate {
 
     func isBluetoothAvailable(_ call: CAPPluginCall) {
         DispatchQueue.main.async {
-            let state = self.getBluetoothStateValue()
-            call.resolve(["available": state == "powered_on"])
+            call.resolve([
+                "available": self.hasBluetoothSupportValue() && self.isBluetoothEnabledValue()
+            ])
         }
     }
 
     func isBluetoothEnabled(_ call: CAPPluginCall) {
         DispatchQueue.main.async {
-            let state = self.getBluetoothStateValue()
-            call.resolve(["enabled": state == "powered_on"])
+            call.resolve([
+                "enabled": self.isBluetoothEnabledValue()
+            ])
         }
     }
 
     func hasBluetoothSupport(_ call: CAPPluginCall) {
         DispatchQueue.main.async {
-            let state = self.getBluetoothStateValue()
-            call.resolve(["supported": state != "unsupported"])
+            call.resolve([
+                "supported": self.hasBluetoothSupportValue()
+            ])
         }
     }
 
     func hasBluetoothLESupport(_ call: CAPPluginCall) {
         DispatchQueue.main.async {
-            let state = self.getBluetoothStateValue()
-            call.resolve(["supported": state != "unsupported"])
+            call.resolve([
+                "supported": self.hasBluetoothSupportValue()
+            ])
         }
     }
 
     func hasBluetoothLEPeripheralSupport(_ call: CAPPluginCall) {
         DispatchQueue.main.async {
-            let state = self.getBluetoothStateValue()
-            call.resolve(["supported": state != "unsupported"])
+            call.resolve([
+                "supported": self.hasBluetoothSupportValue()
+            ])
         }
     }
 
@@ -73,16 +83,21 @@ class BluetoothModule: NSObject, CBCentralManagerDelegate {
 
     func getBluetoothState(_ call: CAPPluginCall) {
         DispatchQueue.main.async {
-            call.resolve(["state": self.getBluetoothStateValue()])
+            call.resolve([
+                "state": self.getBluetoothStateValue()
+            ])
         }
     }
 
     func getBluetoothAuthorizationStatuses(_ call: CAPPluginCall) {
         DispatchQueue.main.async {
-            let auth = self.getBluetoothAuthorizationStatusValue()
+            let status = self.getBluetoothAuthorizationStatusValue()
+
             call.resolve([
                 "statuses": [
-                    "authorization": auth
+                    "BLUETOOTH_ADVERTISE": status,
+                    "BLUETOOTH_CONNECT": status,
+                    "BLUETOOTH_SCAN": status
                 ]
             ])
         }
@@ -90,23 +105,17 @@ class BluetoothModule: NSObject, CBCentralManagerDelegate {
 
     func requestBluetoothAuthorization(_ call: CAPPluginCall) {
         DispatchQueue.main.async {
-            let auth = self.getBluetoothAuthorizationStatusValue()
+            let currentStatus = self.getBluetoothAuthorizationStatusValue()
 
-            if auth == self.STATUS_GRANTED {
-                call.reject("Bluetooth authorization is already granted")
+            if currentStatus != self.STATUS_NOT_DETERMINED {
+                call.resolve([
+                    "status": currentStatus
+                ])
                 return
             }
 
-            if auth == self.STATUS_DENIED {
-                call.reject("Bluetooth authorization has been denied")
-                return
-            }
-
+            self.pendingBluetoothAuthorizationCall = call
             self.ensureBluetoothManagerValue()
-
-            call.resolve([
-                "status": self.STATUS_NOT_DETERMINED
-            ])
         }
     }
 
@@ -132,35 +141,34 @@ class BluetoothModule: NSObject, CBCentralManagerDelegate {
                 queue: DispatchQueue.main,
                 options: [CBCentralManagerOptionShowPowerAlertKey: NSNumber(value: false)]
             )
-
-            if let manager = bluetoothManager {
-                centralManagerDidUpdateState(manager)
-            }
         }
+    }
+
+    private func isBluetoothEnabledValue() -> Bool {
+        return getBluetoothStateValue() == BLUETOOTH_STATE_POWERED_ON
+    }
+
+    private func hasBluetoothSupportValue() -> Bool {
+        let state = getBluetoothStateValue()
+        return state != "unsupported"
     }
 
     private func getBluetoothStateValue() -> String {
         ensureBluetoothManagerValue()
 
         guard let manager = bluetoothManager else {
-            return "unknown"
+            return BLUETOOTH_STATE_UNKNOWN
         }
 
         switch manager.state {
-        case .resetting:
-            return "resetting"
-        case .unsupported:
-            return "unsupported"
-        case .unauthorized:
-            return "unauthorized"
         case .poweredOff:
-            return "powered_off"
+            return BLUETOOTH_STATE_POWERED_OFF
         case .poweredOn:
-            return "powered_on"
-        case .unknown:
-            return "unknown"
+            return BLUETOOTH_STATE_POWERED_ON
+        case .resetting, .unauthorized, .unsupported, .unknown:
+            return BLUETOOTH_STATE_UNKNOWN
         @unknown default:
-            return "unknown"
+            return BLUETOOTH_STATE_UNKNOWN
         }
     }
 
@@ -196,6 +204,19 @@ class BluetoothModule: NSObject, CBCentralManagerDelegate {
         ])
     }
 
+    private func resolvePendingBluetoothAuthorizationCallIfNeeded() {
+        guard let call = pendingBluetoothAuthorizationCall else {
+            return
+        }
+
+        let status = getBluetoothAuthorizationStatusValue()
+        if status != STATUS_NOT_DETERMINED {
+            pendingBluetoothAuthorizationCall = nil
+            call.resolve([
+                "status": status
+            ])
+        }
+    }
 
     func centralManagerDidUpdateState(_ central: CBCentralManager) {
         let state = getBluetoothStateValue()
@@ -204,5 +225,7 @@ class BluetoothModule: NSObject, CBCentralManagerDelegate {
             lastBluetoothState = state
             notifyBluetoothStateChange(state)
         }
+
+        resolvePendingBluetoothAuthorizationCallIfNeeded()
     }
 }
