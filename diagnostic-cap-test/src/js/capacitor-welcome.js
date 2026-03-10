@@ -176,11 +176,11 @@ function setMarker(text) {
 async function diagSmokeMarker() {
   setMarker('DIAG_PENDING');
   try {
-    const bluetooth = await DiagnosticPlugin.getBluetoothState();
-    const auth = await DiagnosticPlugin.getBluetoothAuthorizationStatus();
+    const present = await DiagnosticPlugin.isCameraPresent();
+    const auth = await DiagnosticPlugin.getCameraAuthorizationStatus({ storage: false });
 
     setMarker(
-      `DIAG_OK:BT=${bluetooth?.state ?? 'unknown'}|AUTH=${auth?.status ?? 'unknown'}`
+      `DIAG_OK:CAM=${present?.present ?? false}|AUTH=${auth?.status ?? 'unknown'}`
     );
   } catch (e) {
     setMarker(`DIAG_FAIL:${e && e.message ? e.message : String(e)}`);
@@ -188,7 +188,12 @@ async function diagSmokeMarker() {
 }
 
 (async () => {
-  console.log('=== DiagnosticPlugin BLUETOOTH permission smoke test ===');
+  console.log('=== DiagnosticPlugin CAMERA permission smoke test ===');
+
+  /*
+  // -----------------------
+  // Bluetooth (temporarily disabled)
+  // -----------------------
 
   let bluetoothListener = null;
 
@@ -232,9 +237,47 @@ async function diagSmokeMarker() {
   await safeCall('getBluetoothAuthorizationStatuses [after]', () =>
     DiagnosticPlugin.getBluetoothAuthorizationStatuses()
   );
+  */
+
+  console.log('--- CAMERA ---');
+
+  await safeCall('isCameraPresent', () => DiagnosticPlugin.isCameraPresent());
+
+  console.log('--- CAMERA AUTH BEFORE REQUEST (camera only) ---');
+  await safeCall('getCameraAuthorizationStatus [before][camera-only]', () =>
+    DiagnosticPlugin.getCameraAuthorizationStatus({ storage: false })
+  );
+
+  await safeCall('getCameraAuthorizationStatuses [before][with-storage]', () =>
+    DiagnosticPlugin.getCameraAuthorizationStatuses({ storage: true })
+  );
+
+  console.log('--- CAMERA REQUEST AUTH (camera only) ---');
+  await safeCall('requestCameraAuthorization [camera-only]', () =>
+    DiagnosticPlugin.requestCameraAuthorization({ storage: false })
+  );
+
+  console.log('--- CAMERA AUTH AFTER REQUEST (camera only) ---');
+  await safeCall('getCameraAuthorizationStatus [after][camera-only]', () =>
+    DiagnosticPlugin.getCameraAuthorizationStatus({ storage: false })
+  );
+
+  console.log('--- CAMERA REQUEST AUTH (camera + storage) ---');
+  await safeCall('requestCameraAuthorization [camera+storage]', () =>
+    DiagnosticPlugin.requestCameraAuthorization({ storage: true })
+  );
+
+  await safeCall('getCameraAuthorizationStatus [after][camera+storage]', () =>
+    DiagnosticPlugin.getCameraAuthorizationStatus({ storage: true })
+  );
+
+  await safeCall('getCameraAuthorizationStatuses [after][camera+storage]', () =>
+    DiagnosticPlugin.getCameraAuthorizationStatuses({ storage: true })
+  );
 
   await diagSmokeMarker();
 
+  /*
   if (bluetoothListener && bluetoothListener.remove) {
     try {
       await bluetoothListener.remove();
@@ -242,6 +285,7 @@ async function diagSmokeMarker() {
       console.error('remove bluetooth listener', e);
     }
   }
+  */
 
   console.log('=== Done ===');
 })();

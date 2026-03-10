@@ -24,7 +24,6 @@ CAP_PLUGIN(DiagnosticPlugin, "DiagnosticPlugin",
     CAP_PLUGIN_METHOD(isLocationAuthorized, CAPPluginReturnPromise);
     CAP_PLUGIN_METHOD(getLocationAccuracyAuthorization, CAPPluginReturnPromise);
     CAP_PLUGIN_METHOD(requestTemporaryFullAccuracyAuthorization, CAPPluginReturnPromise);
-
     // -----------------------
     // Bluetooth
     // -----------------------
@@ -40,4 +39,11 @@ CAP_PLUGIN(DiagnosticPlugin, "DiagnosticPlugin",
     CAP_PLUGIN_METHOD(requestBluetoothAuthorization, CAPPluginReturnPromise);
     CAP_PLUGIN_METHOD(ensureBluetoothManager, CAPPluginReturnPromise);
     CAP_PLUGIN_METHOD(getBluetoothAuthorizationStatus, CAPPluginReturnPromise);
+    // -----------------------
+    // Camera
+    // -----------------------
+    CAP_PLUGIN_METHOD(isCameraPresent, CAPPluginReturnPromise);
+    CAP_PLUGIN_METHOD(requestCameraAuthorization, CAPPluginReturnPromise);
+    CAP_PLUGIN_METHOD(getCameraAuthorizationStatus, CAPPluginReturnPromise);
+    CAP_PLUGIN_METHOD(getCameraAuthorizationStatuses, CAPPluginReturnPromise);
 )

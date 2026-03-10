@@ -6,6 +6,7 @@ public class DiagnosticPlugin: CAPPlugin {
 
     private lazy var location = LocationModule()
     private lazy var bluetooth = BluetoothModule(plugin: self)
+    private lazy var camera = CameraModule(plugin: self)
 
     // -----------------------
     // Location
@@ -57,4 +58,13 @@ public class DiagnosticPlugin: CAPPlugin {
     @objc func ensureBluetoothManager(_ call: CAPPluginCall) { bluetooth.ensureBluetoothManager(call) }
 
     @objc func getBluetoothAuthorizationStatus(_ call: CAPPluginCall) { bluetooth.getBluetoothAuthorizationStatus(call) }
+
+    // -----------------------
+    // Camera
+    // -----------------------
+
+    @objc func isCameraPresent(_ call: CAPPluginCall) { camera.isCameraPresent(call) }
+    @objc func requestCameraAuthorization(_ call: CAPPluginCall) { camera.requestCameraAuthorization(call) }
+    @objc func getCameraAuthorizationStatus(_ call: CAPPluginCall) { camera.getCameraAuthorizationStatus(call) }
+    @objc func getCameraAuthorizationStatuses(_ call: CAPPluginCall) { camera.getCameraAuthorizationStatuses(call) }
 }
