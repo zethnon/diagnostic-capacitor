@@ -2,12 +2,10 @@ import { WebPlugin } from '@capacitor/core';
 import type { DiagnosticPlugin } from './definitions';
 
 export class DiagnosticPluginWeb extends WebPlugin implements DiagnosticPlugin {
-
-
   // -----------------------
   // Location
   // -----------------------
-  
+
   async getLocationAuthorizationStatus(): Promise<{ status: string }> {
     return { status: 'not_implemented' };
   }
@@ -69,7 +67,7 @@ export class DiagnosticPluginWeb extends WebPlugin implements DiagnosticPlugin {
   }
 
   // -----------------------
-  // Bluetooth 
+  // Bluetooth
   // -----------------------
 
   async switchToBluetoothSettings(): Promise<void> {}
@@ -116,5 +114,31 @@ export class DiagnosticPluginWeb extends WebPlugin implements DiagnosticPlugin {
 
   async getBluetoothAuthorizationStatus(): Promise<{ status: string }> {
     return { status: 'not_implemented' };
+  }
+
+  // -----------------------
+  // Camera
+  // -----------------------
+
+  async isCameraPresent(): Promise<{ present: boolean }> {
+    return { present: false };
+  }
+
+  async requestCameraAuthorization(_options?: {
+    storage?: boolean;
+  }): Promise<{ status: string }> {
+    return { status: 'not_implemented' };
+  }
+
+  async getCameraAuthorizationStatus(_options?: {
+    storage?: boolean;
+  }): Promise<{ status: string }> {
+    return { status: 'not_implemented' };
+  }
+
+  async getCameraAuthorizationStatuses(_options?: {
+    storage?: boolean;
+  }): Promise<{ statuses: Record<string, string> }> {
+    return { statuses: {} };
   }
 }

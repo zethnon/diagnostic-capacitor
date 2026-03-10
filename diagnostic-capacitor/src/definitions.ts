@@ -171,4 +171,38 @@ export interface DiagnosticPlugin {
   ): Promise<PluginListenerHandle>;
 
   removeAllListeners(): Promise<void>;
+
+  // -----------------------
+  // Camera
+  // -----------------------
+
+  /**
+   * True if device has a camera.
+   */
+  isCameraPresent(): Promise<{ present: boolean }>;
+
+  /**
+   * Requests camera authorization.
+   * If `storage` is true, also requests storage/media library permissions needed by Cordova parity.
+   */
+  requestCameraAuthorization(options?: {
+    storage?: boolean;
+  }): Promise<{ status: string }>;
+
+  /**
+   * Returns combined camera authorization status.
+   * If `storage` is true, combines camera + storage/media permissions using Cordova parity.
+   */
+  getCameraAuthorizationStatus(options?: {
+    storage?: boolean;
+  }): Promise<{ status: string }>;
+
+  /**
+   * Returns raw camera/media permission statuses map.
+   */
+  getCameraAuthorizationStatuses(options?: {
+    storage?: boolean;
+  }): Promise<{
+    statuses: Record<string, string>;
+  }>;
 }

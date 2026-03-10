@@ -12,6 +12,7 @@ import com.getcapacitor.annotation.Permission;
 import com.getcapacitor.annotation.PermissionCallback;
 
 import com.noesis.diagnostic.modules.BluetoothModule;
+import com.noesis.diagnostic.modules.CameraModule;
 import com.noesis.diagnostic.modules.LocationModule;
 
 @CapacitorPlugin(
@@ -37,6 +38,34 @@ import com.noesis.diagnostic.modules.LocationModule;
                 Manifest.permission.BLUETOOTH_CONNECT,
                 Manifest.permission.BLUETOOTH_SCAN
             }
+        ),
+        @Permission(
+            alias = "camera",
+            strings = {
+                Manifest.permission.CAMERA
+            }
+        ),
+        @Permission(
+            alias = "cameraStorageLegacy",
+            strings = {
+                Manifest.permission.READ_EXTERNAL_STORAGE,
+                Manifest.permission.WRITE_EXTERNAL_STORAGE
+            }
+        ),
+        @Permission(
+            alias = "cameraStorage33",
+            strings = {
+                Manifest.permission.READ_MEDIA_IMAGES,
+                Manifest.permission.READ_MEDIA_VIDEO
+            }
+        ),
+        @Permission(
+            alias = "cameraStorage34",
+            strings = {
+                Manifest.permission.READ_MEDIA_IMAGES,
+                Manifest.permission.READ_MEDIA_VIDEO,
+                Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED
+            }
         )
     }
 )
@@ -44,6 +73,7 @@ public class DiagnosticPlugin extends Plugin implements BluetoothModule.Bluetoot
 
     private LocationModule location;
     private BluetoothModule bluetooth;
+    private CameraModule cameraModule;
 
     @Override
     public void load() {
@@ -51,6 +81,7 @@ public class DiagnosticPlugin extends Plugin implements BluetoothModule.Bluetoot
 
         location = new LocationModule(this);
         bluetooth = new BluetoothModule(this, this);
+        cameraModule = new CameraModule(getContext());
 
         bluetooth.load();
     }
@@ -237,5 +268,75 @@ public class DiagnosticPlugin extends Plugin implements BluetoothModule.Bluetoot
 
     public void requestBluetoothPermissions(PluginCall call) {
         requestPermissionForAlias("bluetooth", call, "onBluetoothPermissionResult");
+    }
+
+    // -----------------------
+    // Camera
+    // -----------------------
+
+    @PluginMethod
+    public void isCameraPresent(PluginCall call) {
+        JSObject result = new JSObject();
+        result.put("present", cameraModule.isCameraPresent());
+        call.resolve(result);
+    }
+
+    @PluginMethod
+    public void getCameraAuthorizationStatuses(PluginCall call) {
+        boolean storage = call.getBoolean("storage", false);
+        JSObject result = new JSObject();
+        result.put("statuses", cameraModule.getCameraAuthorizationStatuses(storage, getActivity()));
+        call.resolve(result);
+    }
+
+    @PluginMethod
+    public void getCameraAuthorizationStatus(PluginCall call) {
+        boolean storage = call.getBoolean("storage", false);
+        JSObject result = new JSObject();
+        result.put("status", cameraModule.getCameraAuthorizationStatus(storage, getActivity()));
+        call.resolve(result);
+    }
+
+    @PluginMethod
+    public void requestCameraAuthorization(PluginCall call) {
+        boolean storage = call.getBoolean("storage", false);
+
+        call.getData().put("storage", storage);
+        cameraModule.markPermissionsRequested(cameraModule.getPermissions(storage));
+
+        requestPermissionForAlias("camera", call, "onCameraPermissionResult");
+    }
+
+    @PermissionCallback
+    private void onCameraPermissionResult(PluginCall call) {
+        boolean storage = call.getData().optBoolean("storage", false);
+
+        if (!storage) {
+            JSObject result = new JSObject();
+            result.put("status", cameraModule.getCameraAuthorizationStatus(false, getActivity()));
+            call.resolve(result);
+            return;
+        }
+
+        requestPermissionForAlias(getCameraStorageAlias(), call, "onCameraStoragePermissionResult");
+    }
+
+    @PermissionCallback
+    private void onCameraStoragePermissionResult(PluginCall call) {
+        boolean storage = call.getData().optBoolean("storage", false);
+
+        JSObject result = new JSObject();
+        result.put("status", cameraModule.getCameraAuthorizationStatus(storage, getActivity()));
+        call.resolve(result);
+    }
+
+    private String getCameraStorageAlias() {
+        if (Build.VERSION.SDK_INT >= 34) {
+            return "cameraStorage34";
+        } else if (Build.VERSION.SDK_INT >= 33) {
+            return "cameraStorage33";
+        } else {
+            return "cameraStorageLegacy";
+        }
     }
 }
