@@ -205,4 +205,46 @@ export interface DiagnosticPlugin {
   }): Promise<{
     statuses: Record<string, string>;
   }>;
+
+  // -----------------------
+  // Notifications
+  // -----------------------
+
+  /**
+   * True if remote/push notifications are effectively enabled for the app.
+   */
+  isRemoteNotificationsEnabled(): Promise<{ enabled: boolean }>;
+
+  /**
+   * Returns Cordova-style notification types map.
+   * iOS returns actual alert/sound/badge values.
+   * Android returns best-effort parity using app-level notification enablement.
+   */
+  getRemoteNotificationTypes(): Promise<{
+    types: Record<string, '0' | '1'>;
+  }>;
+
+  /**
+   * iOS exposes APNS registration state directly.
+   * Android returns best-effort parity.
+   */
+  isRegisteredForRemoteNotifications(): Promise<{ registered: boolean }>;
+
+  /**
+   * Returns notification authorization status.
+   */
+  getRemoteNotificationsAuthorizationStatus(): Promise<{ status: string }>;
+
+  /**
+   * Requests remote notification authorization.
+   */
+  requestRemoteNotificationsAuthorization(options?: {
+    types?: Array<'alert' | 'sound' | 'badge'>;
+    omitRegistration?: boolean;
+  }): Promise<{ status: string }>;
+
+  /**
+   * Opens the app notification settings screen.
+   */
+  switchToNotificationSettings(): Promise<void>;
 }

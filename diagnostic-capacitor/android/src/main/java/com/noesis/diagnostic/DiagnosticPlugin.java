@@ -14,6 +14,7 @@ import com.getcapacitor.annotation.PermissionCallback;
 import com.noesis.diagnostic.modules.BluetoothModule;
 import com.noesis.diagnostic.modules.CameraModule;
 import com.noesis.diagnostic.modules.LocationModule;
+import com.noesis.diagnostic.modules.NotificationsModule;
 
 @CapacitorPlugin(
     name = "DiagnosticPlugin",
@@ -66,6 +67,12 @@ import com.noesis.diagnostic.modules.LocationModule;
                 Manifest.permission.READ_MEDIA_VIDEO,
                 Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED
             }
+        ),
+        @Permission(
+            alias = "notifications",
+            strings = {
+                Manifest.permission.POST_NOTIFICATIONS
+            }
         )
     }
 )
@@ -74,6 +81,7 @@ public class DiagnosticPlugin extends Plugin implements BluetoothModule.Bluetoot
     private LocationModule location;
     private BluetoothModule bluetooth;
     private CameraModule cameraModule;
+    private NotificationsModule notifications;
 
     @Override
     public void load() {
@@ -82,6 +90,7 @@ public class DiagnosticPlugin extends Plugin implements BluetoothModule.Bluetoot
         location = new LocationModule(this);
         bluetooth = new BluetoothModule(this, this);
         cameraModule = new CameraModule(getContext());
+        notifications = new NotificationsModule(this);
 
         bluetooth.load();
     }
@@ -337,6 +346,53 @@ public class DiagnosticPlugin extends Plugin implements BluetoothModule.Bluetoot
             return "cameraStorage33";
         } else {
             return "cameraStorageLegacy";
+        }
+    }
+
+    // -----------------------
+    // Notifications
+    // -----------------------
+
+    @PluginMethod
+    public void isRemoteNotificationsEnabled(PluginCall call) {
+        notifications.isRemoteNotificationsEnabled(call);
+    }
+
+    @PluginMethod
+    public void getRemoteNotificationTypes(PluginCall call) {
+        notifications.getRemoteNotificationTypes(call);
+    }
+
+    @PluginMethod
+    public void isRegisteredForRemoteNotifications(PluginCall call) {
+        notifications.isRegisteredForRemoteNotifications(call);
+    }
+
+    @PluginMethod
+    public void getRemoteNotificationsAuthorizationStatus(PluginCall call) {
+        notifications.getRemoteNotificationsAuthorizationStatus(call);
+    }
+
+    @PluginMethod
+    public void requestRemoteNotificationsAuthorization(PluginCall call) {
+        notifications.requestRemoteNotificationsAuthorization(call);
+    }
+
+    @PluginMethod
+    public void switchToNotificationSettings(PluginCall call) {
+        notifications.switchToNotificationSettings(call);
+    }
+
+    @PermissionCallback
+    private void onNotificationsPermissionResult(PluginCall call) {
+        notifications.onNotificationsPermissionResult(call);
+    }
+
+    public void requestNotificationsPermission(PluginCall call) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            requestPermissionForAlias("notifications", call, "onNotificationsPermissionResult");
+        } else {
+            notifications.onNotificationsPermissionNotRequired(call);
         }
     }
 }

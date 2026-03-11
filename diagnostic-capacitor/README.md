@@ -42,6 +42,16 @@ npx cap sync
 * [`getBluetoothAuthorizationStatus()`](#getbluetoothauthorizationstatus)
 * [`addListener('bluetoothStateChange', ...)`](#addlistenerbluetoothstatechange-)
 * [`removeAllListeners()`](#removealllisteners)
+* [`isCameraPresent()`](#iscamerapresent)
+* [`requestCameraAuthorization(...)`](#requestcameraauthorization)
+* [`getCameraAuthorizationStatus(...)`](#getcameraauthorizationstatus)
+* [`getCameraAuthorizationStatuses(...)`](#getcameraauthorizationstatuses)
+* [`isRemoteNotificationsEnabled()`](#isremotenotificationsenabled)
+* [`getRemoteNotificationTypes()`](#getremotenotificationtypes)
+* [`isRegisteredForRemoteNotifications()`](#isregisteredforremotenotifications)
+* [`getRemoteNotificationsAuthorizationStatus()`](#getremotenotificationsauthorizationstatus)
+* [`requestRemoteNotificationsAuthorization(...)`](#requestremotenotificationsauthorization)
+* [`switchToNotificationSettings()`](#switchtonotificationsettings)
 * [Interfaces](#interfaces)
 * [Type Aliases](#type-aliases)
 
@@ -440,6 +450,159 @@ Bluetooth state change event. Fired when underlying OS BT state changes.
 ```typescript
 removeAllListeners() => Promise<void>
 ```
+
+--------------------
+
+
+### isCameraPresent()
+
+```typescript
+isCameraPresent() => Promise<{ present: boolean; }>
+```
+
+True if device has a camera.
+
+**Returns:** <code>Promise&lt;{ present: boolean; }&gt;</code>
+
+--------------------
+
+
+### requestCameraAuthorization(...)
+
+```typescript
+requestCameraAuthorization(options?: { storage?: boolean | undefined; } | undefined) => Promise<{ status: string; }>
+```
+
+Requests camera authorization.
+If `storage` is true, also requests storage/media library permissions needed by Cordova parity.
+
+| Param         | Type                                |
+| ------------- | ----------------------------------- |
+| **`options`** | <code>{ storage?: boolean; }</code> |
+
+**Returns:** <code>Promise&lt;{ status: string; }&gt;</code>
+
+--------------------
+
+
+### getCameraAuthorizationStatus(...)
+
+```typescript
+getCameraAuthorizationStatus(options?: { storage?: boolean | undefined; } | undefined) => Promise<{ status: string; }>
+```
+
+Returns combined camera authorization status.
+If `storage` is true, combines camera + storage/media permissions using Cordova parity.
+
+| Param         | Type                                |
+| ------------- | ----------------------------------- |
+| **`options`** | <code>{ storage?: boolean; }</code> |
+
+**Returns:** <code>Promise&lt;{ status: string; }&gt;</code>
+
+--------------------
+
+
+### getCameraAuthorizationStatuses(...)
+
+```typescript
+getCameraAuthorizationStatuses(options?: { storage?: boolean | undefined; } | undefined) => Promise<{ statuses: Record<string, string>; }>
+```
+
+Returns raw camera/media permission statuses map.
+
+| Param         | Type                                |
+| ------------- | ----------------------------------- |
+| **`options`** | <code>{ storage?: boolean; }</code> |
+
+**Returns:** <code>Promise&lt;{ statuses: <a href="#record">Record</a>&lt;string, string&gt;; }&gt;</code>
+
+--------------------
+
+
+### isRemoteNotificationsEnabled()
+
+```typescript
+isRemoteNotificationsEnabled() => Promise<{ enabled: boolean; }>
+```
+
+True if remote/push notifications are enabled for the app.
+
+**Returns:** <code>Promise&lt;{ enabled: boolean; }&gt;</code>
+
+--------------------
+
+
+### getRemoteNotificationTypes()
+
+```typescript
+getRemoteNotificationTypes() => Promise<{ types: Record<string, '0' | '1'>; }>
+```
+
+iOS only:
+Returns alert/sound/badge flags as Cordova-style strings ("0" | "1").
+Android returns best-effort parity or an empty object if unsupported.
+
+**Returns:** <code>Promise&lt;{ types: <a href="#record">Record</a>&lt;string, '0' | '1'&gt;; }&gt;</code>
+
+--------------------
+
+
+### isRegisteredForRemoteNotifications()
+
+```typescript
+isRegisteredForRemoteNotifications() => Promise<{ registered: boolean; }>
+```
+
+iOS only:
+True if the app is currently registered for remote notifications.
+Android returns best-effort parity.
+
+**Returns:** <code>Promise&lt;{ registered: boolean; }&gt;</code>
+
+--------------------
+
+
+### getRemoteNotificationsAuthorizationStatus()
+
+```typescript
+getRemoteNotificationsAuthorizationStatus() => Promise<{ status: string; }>
+```
+
+Returns Cordova-style authorization status:
+granted | denied | not_determined | provisional | ephemeral | unknown
+
+**Returns:** <code>Promise&lt;{ status: string; }&gt;</code>
+
+--------------------
+
+
+### requestRemoteNotificationsAuthorization(...)
+
+```typescript
+requestRemoteNotificationsAuthorization(options?: { types?: ("alert" | "sound" | "badge")[] | undefined; omitRegistration?: boolean | undefined; } | undefined) => Promise<{ status: string; }>
+```
+
+Requests remote notifications authorization.
+`types` may include: alert, sound, badge
+`omitRegistration` matches Cordova iOS behavior.
+
+| Param         | Type                                                                                    |
+| ------------- | --------------------------------------------------------------------------------------- |
+| **`options`** | <code>{ types?: ('alert' \| 'sound' \| 'badge')[]; omitRegistration?: boolean; }</code> |
+
+**Returns:** <code>Promise&lt;{ status: string; }&gt;</code>
+
+--------------------
+
+
+### switchToNotificationSettings()
+
+```typescript
+switchToNotificationSettings() => Promise<void>
+```
+
+Opens app notification settings.
 
 --------------------
 

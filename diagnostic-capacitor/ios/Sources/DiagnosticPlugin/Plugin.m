@@ -46,4 +46,13 @@ CAP_PLUGIN(DiagnosticPlugin, "DiagnosticPlugin",
     CAP_PLUGIN_METHOD(requestCameraAuthorization, CAPPluginReturnPromise);
     CAP_PLUGIN_METHOD(getCameraAuthorizationStatus, CAPPluginReturnPromise);
     CAP_PLUGIN_METHOD(getCameraAuthorizationStatuses, CAPPluginReturnPromise);
+    // -----------------------
+    // Notifications
+    // -----------------------
+    CAP_PLUGIN_METHOD(isRemoteNotificationsEnabled, CAPPluginReturnPromise);
+    CAP_PLUGIN_METHOD(getRemoteNotificationTypes, CAPPluginReturnPromise);
+    CAP_PLUGIN_METHOD(isRegisteredForRemoteNotifications, CAPPluginReturnPromise);
+    CAP_PLUGIN_METHOD(getRemoteNotificationsAuthorizationStatus, CAPPluginReturnPromise);
+    CAP_PLUGIN_METHOD(requestRemoteNotificationsAuthorization, CAPPluginReturnPromise);
+    CAP_PLUGIN_METHOD(switchToNotificationSettings, CAPPluginReturnPromise);
 )

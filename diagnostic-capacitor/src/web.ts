@@ -141,4 +141,33 @@ export class DiagnosticPluginWeb extends WebPlugin implements DiagnosticPlugin {
   }): Promise<{ statuses: Record<string, string> }> {
     return { statuses: {} };
   }
+
+  // -----------------------
+  // Notifications
+  // -----------------------
+
+  async isRemoteNotificationsEnabled(): Promise<{ enabled: boolean }> {
+    return { enabled: false };
+  }
+
+  async getRemoteNotificationTypes(): Promise<{ types: Record<string, '0' | '1'> }> {
+    return { types: {} };
+  }
+
+  async isRegisteredForRemoteNotifications(): Promise<{ registered: boolean }> {
+    return { registered: false };
+  }
+
+  async getRemoteNotificationsAuthorizationStatus(): Promise<{ status: string }> {
+    return { status: 'not_implemented' };
+  }
+
+  async requestRemoteNotificationsAuthorization(_options?: {
+    types?: Array<'alert' | 'sound' | 'badge'>;
+    omitRegistration?: boolean;
+  }): Promise<{ status: string }> {
+    return { status: 'not_implemented' };
+  }
+
+  async switchToNotificationSettings(): Promise<void> {}
 }

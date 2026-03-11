@@ -7,6 +7,7 @@ public class DiagnosticPlugin: CAPPlugin {
     private lazy var location = LocationModule()
     private lazy var bluetooth = BluetoothModule(plugin: self)
     private lazy var camera = CameraModule(plugin: self)
+    private lazy var notifications = NotificationsModule(plugin: self)
 
     // -----------------------
     // Location
@@ -67,4 +68,15 @@ public class DiagnosticPlugin: CAPPlugin {
     @objc func requestCameraAuthorization(_ call: CAPPluginCall) { camera.requestCameraAuthorization(call) }
     @objc func getCameraAuthorizationStatus(_ call: CAPPluginCall) { camera.getCameraAuthorizationStatus(call) }
     @objc func getCameraAuthorizationStatuses(_ call: CAPPluginCall) { camera.getCameraAuthorizationStatuses(call) }
+
+    // -----------------------
+    // Notifications
+    // -----------------------
+
+    @objc func isRemoteNotificationsEnabled(_ call: CAPPluginCall) { notifications.isRemoteNotificationsEnabled(call) }
+    @objc func getRemoteNotificationTypes(_ call: CAPPluginCall) { notifications.getRemoteNotificationTypes(call) }
+    @objc func isRegisteredForRemoteNotifications(_ call: CAPPluginCall) { notifications.isRegisteredForRemoteNotifications(call) }
+    @objc func getRemoteNotificationsAuthorizationStatus(_ call: CAPPluginCall) { notifications.getRemoteNotificationsAuthorizationStatus(call) }
+    @objc func requestRemoteNotificationsAuthorization(_ call: CAPPluginCall) { notifications.requestRemoteNotificationsAuthorization(call) }
+    @objc func switchToNotificationSettings(_ call: CAPPluginCall) { notifications.switchToNotificationSettings(call) }
 }

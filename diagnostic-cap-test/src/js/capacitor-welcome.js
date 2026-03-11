@@ -140,7 +140,6 @@ window.customElements.define(
     }
   },
 );
-
 import { registerPlugin } from '@capacitor/core';
 
 const DiagnosticPlugin = registerPlugin('DiagnosticPlugin');
@@ -188,7 +187,7 @@ async function diagSmokeMarker() {
 }
 
 (async () => {
-  console.log('=== DiagnosticPlugin CAMERA permission smoke test ===');
+  console.log('=== DiagnosticPlugin CAMERA + NOTIFICATIONS smoke test ===');
 
   /*
   // -----------------------
@@ -274,6 +273,55 @@ async function diagSmokeMarker() {
   await safeCall('getCameraAuthorizationStatuses [after][camera+storage]', () =>
     DiagnosticPlugin.getCameraAuthorizationStatuses({ storage: true })
   );
+
+  console.log('--- NOTIFICATIONS ---');
+
+  console.log('--- NOTIFICATIONS BEFORE REQUEST ---');
+  await safeCall('getRemoteNotificationsAuthorizationStatus [before]', () =>
+    DiagnosticPlugin.getRemoteNotificationsAuthorizationStatus()
+  );
+
+  await safeCall('isRemoteNotificationsEnabled [before]', () =>
+    DiagnosticPlugin.isRemoteNotificationsEnabled()
+  );
+
+  await safeCall('getRemoteNotificationTypes [before]', () =>
+    DiagnosticPlugin.getRemoteNotificationTypes()
+  );
+
+  await safeCall('isRegisteredForRemoteNotifications [before]', () =>
+    DiagnosticPlugin.isRegisteredForRemoteNotifications()
+  );
+
+  console.log('--- NOTIFICATIONS REQUEST AUTH ---');
+  await safeCall('requestRemoteNotificationsAuthorization', () =>
+    DiagnosticPlugin.requestRemoteNotificationsAuthorization({
+      types: ['alert', 'sound', 'badge'],
+      omitRegistration: false,
+    })
+  );
+
+  console.log('--- NOTIFICATIONS AFTER REQUEST ---');
+  await safeCall('getRemoteNotificationsAuthorizationStatus [after]', () =>
+    DiagnosticPlugin.getRemoteNotificationsAuthorizationStatus()
+  );
+
+  await safeCall('isRemoteNotificationsEnabled [after]', () =>
+    DiagnosticPlugin.isRemoteNotificationsEnabled()
+  );
+
+  await safeCall('getRemoteNotificationTypes [after]', () =>
+    DiagnosticPlugin.getRemoteNotificationTypes()
+  );
+
+  await safeCall('isRegisteredForRemoteNotifications [after]', () =>
+    DiagnosticPlugin.isRegisteredForRemoteNotifications()
+  );
+
+  // Optional manual check:
+  // await safeCall('switchToNotificationSettings', () =>
+  //   DiagnosticPlugin.switchToNotificationSettings()
+  // );
 
   await diagSmokeMarker();
 
