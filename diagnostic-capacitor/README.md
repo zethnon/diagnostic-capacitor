@@ -58,6 +58,13 @@ npx cap sync
 * [`setWifiState(...)`](#setwifistate)
 * [`requestLocalNetworkAuthorization(...)`](#requestlocalnetworkauthorization)
 * [`getLocalNetworkAuthorizationStatus(...)`](#getlocalnetworkauthorizationstatus)
+* [`isMicrophoneAuthorized()`](#ismicrophoneauthorized)
+* [`getMicrophoneAuthorizationStatus()`](#getmicrophoneauthorizationstatus)
+* [`requestMicrophoneAuthorization()`](#requestmicrophoneauthorization)
+* [`isMotionAvailable()`](#ismotionavailable)
+* [`isMotionRequestOutcomeAvailable()`](#ismotionrequestoutcomeavailable)
+* [`getMotionAuthorizationStatus()`](#getmotionauthorizationstatus)
+* [`requestMotionAuthorization()`](#requestmotionauthorization)
 * [Interfaces](#interfaces)
 * [Type Aliases](#type-aliases)
 
@@ -715,6 +722,139 @@ iOS values:
 | **`options`** | <code>{ timeoutMs?: number; }</code> |
 
 **Returns:** <code>Promise&lt;{ value: number; }&gt;</code>
+
+--------------------
+
+
+### isMicrophoneAuthorized()
+
+```typescript
+isMicrophoneAuthorized() => Promise<{ value: boolean; }>
+```
+
+True if the app is currently authorized to use the microphone.
+
+iOS:
+Uses AVAudioSession.recordPermission and returns true only when
+the permission state is `granted`.
+
+Android:
+Maps to RECORD_AUDIO runtime permission state.
+
+**Returns:** <code>Promise&lt;{ value: boolean; }&gt;</code>
+
+--------------------
+
+
+### getMicrophoneAuthorizationStatus()
+
+```typescript
+getMicrophoneAuthorizationStatus() => Promise<{ value: string; }>
+```
+
+Returns microphone authorization status using Cordova parity strings.
+
+Possible values:
+- "granted"
+- "denied"
+- "not_determined"
+
+iOS:
+Derived from AVAudioSession.recordPermission.
+
+Android:
+Derived from RECORD_AUDIO runtime permission state.
+
+**Returns:** <code>Promise&lt;{ value: string; }&gt;</code>
+
+--------------------
+
+
+### requestMicrophoneAuthorization()
+
+```typescript
+requestMicrophoneAuthorization() => Promise<{ value: boolean; }>
+```
+
+Requests microphone authorization.
+
+iOS:
+Triggers the AVAudioSession.requestRecordPermission() prompt.
+
+Android:
+Requests RECORD_AUDIO runtime permission.
+
+Returns true if permission is granted after the request.
+
+**Returns:** <code>Promise&lt;{ value: boolean; }&gt;</code>
+
+--------------------
+
+
+### isMotionAvailable()
+
+```typescript
+isMotionAvailable() => Promise<{ value: boolean; }>
+```
+
+True if motion/activity tracking is available on the device.
+
+**Returns:** <code>Promise&lt;{ value: boolean; }&gt;</code>
+
+--------------------
+
+
+### isMotionRequestOutcomeAvailable()
+
+```typescript
+isMotionRequestOutcomeAvailable() => Promise<{ value: boolean; }>
+```
+
+True if the device can determine the outcome of a motion permission request.
+
+iOS:
+Best-effort parity with Cordova using CMPedometer event tracking availability.
+
+**Returns:** <code>Promise&lt;{ value: boolean; }&gt;</code>
+
+--------------------
+
+
+### getMotionAuthorizationStatus()
+
+```typescript
+getMotionAuthorizationStatus() => Promise<{ value: string; }>
+```
+
+Returns motion authorization status using Cordova parity strings.
+
+Possible values:
+- "granted"
+- "denied"
+- "not_determined"
+- "not_requested"
+- "not_available"
+- "restricted"
+- "unknown"
+
+**Returns:** <code>Promise&lt;{ value: string; }&gt;</code>
+
+--------------------
+
+
+### requestMotionAuthorization()
+
+```typescript
+requestMotionAuthorization() => Promise<{ value: string; }>
+```
+
+Requests motion authorization.
+
+Important Cordova parity behavior:
+On iOS this can only be meaningfully requested once after app installation.
+Subsequent calls reject if the permission request was already triggered before.
+
+**Returns:** <code>Promise&lt;{ value: string; }&gt;</code>
 
 --------------------
 

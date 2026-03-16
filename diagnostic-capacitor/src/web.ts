@@ -220,4 +220,20 @@ export class DiagnosticPluginWeb extends WebPlugin implements DiagnosticPlugin {
   async requestMicrophoneAuthorization(): Promise<{ value: boolean }> {
     throw this.unavailable('Microphone not available on web');
   }
+
+  async isMotionAvailable(): Promise<{ value: boolean }> {
+    throw this.unavailable('Motion not available on web');
+  }
+
+  async isMotionRequestOutcomeAvailable(): Promise<{ value: boolean }> {
+    throw this.unavailable('Motion not available on web');
+  }
+
+  async getMotionAuthorizationStatus(): Promise<{ value: string }> {
+    throw this.unavailable('Motion not available on web');
+  }
+
+  async requestMotionAuthorization(): Promise<{ value: string }> {
+    throw this.unavailable('Motion not available on web');
+  }
 }

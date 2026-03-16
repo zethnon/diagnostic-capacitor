@@ -354,4 +354,44 @@ export interface DiagnosticPlugin {
    * Returns true if permission is granted after the request.
    */
   requestMicrophoneAuthorization(): Promise<{ value: boolean }>;
+
+  // -----------------------
+  // Motion
+  // -----------------------
+
+  /**
+   * True if motion/activity tracking is available on the device.
+   */
+  isMotionAvailable(): Promise<{ value: boolean }>;
+
+  /**
+   * True if the device can determine the outcome of a motion permission request.
+   *
+   * iOS:
+   * Best-effort parity with Cordova using CMPedometer event tracking availability.
+   */
+  isMotionRequestOutcomeAvailable(): Promise<{ value: boolean }>;
+
+  /**
+   * Returns motion authorization status using Cordova parity strings.
+   *
+   * Possible values:
+   * - "granted"
+   * - "denied"
+   * - "not_determined"
+   * - "not_requested"
+   * - "not_available"
+   * - "restricted"
+   * - "unknown"
+   */
+  getMotionAuthorizationStatus(): Promise<{ value: string }>;
+
+  /**
+   * Requests motion authorization.
+   *
+   * Important Cordova parity behavior:
+   * On iOS this can only be meaningfully requested once after app installation.
+   * Subsequent calls reject if the permission request was already triggered before.
+   */
+  requestMotionAuthorization(): Promise<{ value: string }>;
 }

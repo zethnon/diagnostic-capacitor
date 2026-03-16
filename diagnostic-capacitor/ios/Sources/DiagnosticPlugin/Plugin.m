@@ -68,4 +68,11 @@ CAP_PLUGIN(DiagnosticPlugin, "DiagnosticPlugin",
     CAP_PLUGIN_METHOD(isMicrophoneAuthorized, CAPPluginReturnPromise);
     CAP_PLUGIN_METHOD(getMicrophoneAuthorizationStatus, CAPPluginReturnPromise);
     CAP_PLUGIN_METHOD(requestMicrophoneAuthorization, CAPPluginReturnPromise);
+    // -----------------------
+    // Motion
+    // -----------------------
+    CAP_PLUGIN_METHOD(isMotionAvailable, CAPPluginReturnPromise);
+    CAP_PLUGIN_METHOD(isMotionRequestOutcomeAvailable, CAPPluginReturnPromise);
+    CAP_PLUGIN_METHOD(getMotionAuthorizationStatus, CAPPluginReturnPromise);
+    CAP_PLUGIN_METHOD(requestMotionAuthorization, CAPPluginReturnPromise);
 )
