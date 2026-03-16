@@ -1,5 +1,13 @@
 import type { PluginListenerHandle } from '@capacitor/core';
 
+export interface ExternalSdCardDetail {
+  path: string;
+  filePath: string;
+  canWrite: boolean;
+  freeSpace: number;
+  type: 'root' | 'application';
+}
+
 export interface DiagnosticPlugin {
   // -----------------------
   // Location
@@ -290,7 +298,7 @@ export interface DiagnosticPlugin {
    */
   setWifiState(options: { enable: boolean }): Promise<void>;
 
- /**
+  /**
    * Requests local network authorization (iOS 14+).
    * On unsupported platforms this may be unavailable.
    */
@@ -309,6 +317,18 @@ export interface DiagnosticPlugin {
   getLocalNetworkAuthorizationStatus(options?: {
     timeoutMs?: number;
   }): Promise<{ value: number }>;
+
+  // -----------------------
+  // External Storage
+  // -----------------------
+
+  /**
+   * Returns details for detected removable external SD card paths.
+   *
+   * Cordova parity:
+   * returns the array directly, not wrapped in an object.
+   */
+  getExternalSdCardDetails(): Promise<ExternalSdCardDetail[]>;
 
   // -----------------------
   // Microphone
@@ -394,7 +414,6 @@ export interface DiagnosticPlugin {
    * Subsequent calls reject if the permission request was already triggered before.
    */
   requestMotionAuthorization(): Promise<{ value: string }>;
-
 
   // -----------------------
   // Reminders

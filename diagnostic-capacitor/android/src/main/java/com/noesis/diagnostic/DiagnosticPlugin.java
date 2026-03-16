@@ -13,6 +13,7 @@ import com.getcapacitor.annotation.PermissionCallback;
 
 import com.noesis.diagnostic.modules.BluetoothModule;
 import com.noesis.diagnostic.modules.CameraModule;
+import com.noesis.diagnostic.modules.ExternalStorageModule;
 import com.noesis.diagnostic.modules.LocationModule;
 import com.noesis.diagnostic.modules.NotificationsModule;
 import com.noesis.diagnostic.modules.WifiModule;
@@ -84,8 +85,9 @@ public class DiagnosticPlugin extends Plugin implements BluetoothModule.Bluetoot
     private CameraModule cameraModule;
     private NotificationsModule notifications;
     private WifiModule wifi;
+    private ExternalStorageModule external_storage;
 
-     @Override
+    @Override
     public void load() {
         super.load();
 
@@ -94,6 +96,7 @@ public class DiagnosticPlugin extends Plugin implements BluetoothModule.Bluetoot
         cameraModule = new CameraModule(getContext());
         notifications = new NotificationsModule(this);
         wifi = new WifiModule(this);
+        external_storage = new ExternalStorageModule(getContext());
 
         bluetooth.load();
     }
@@ -112,10 +115,6 @@ public class DiagnosticPlugin extends Plugin implements BluetoothModule.Bluetoot
         data.put("state", state);
         notifyListeners("bluetoothStateChange", data);
     }
-
-    // -----------------------
-    // Location
-    // -----------------------
 
     @PluginMethod
     public void requestLocationAuthorization(PluginCall call) {
@@ -209,10 +208,6 @@ public class DiagnosticPlugin extends Plugin implements BluetoothModule.Bluetoot
         location.onBackgroundLocationPermissionResult(call);
     }
 
-    // -----------------------
-    // Bluetooth
-    // -----------------------
-
     @PluginMethod
     public void switchToBluetoothSettings(PluginCall call) {
         bluetooth.switchToBluetoothSettings(call);
@@ -282,10 +277,6 @@ public class DiagnosticPlugin extends Plugin implements BluetoothModule.Bluetoot
         requestPermissionForAlias("bluetooth", call, "onBluetoothPermissionResult");
     }
 
-    // -----------------------
-    // Camera
-    // -----------------------
-
     @PluginMethod
     public void isCameraPresent(PluginCall call) {
         JSObject result = new JSObject();
@@ -352,10 +343,6 @@ public class DiagnosticPlugin extends Plugin implements BluetoothModule.Bluetoot
         }
     }
 
-    // -----------------------
-    // Notifications
-    // -----------------------
-
     @PluginMethod
     public void isRemoteNotificationsEnabled(PluginCall call) {
         notifications.isRemoteNotificationsEnabled(call);
@@ -398,10 +385,6 @@ public class DiagnosticPlugin extends Plugin implements BluetoothModule.Bluetoot
             notifications.onNotificationsPermissionNotRequired(call);
         }
     }
-    
-    // -----------------------
-    // Wifi
-    // -----------------------
 
     @PluginMethod
     public void switchToWifiSettings(PluginCall call) {
@@ -421,5 +404,10 @@ public class DiagnosticPlugin extends Plugin implements BluetoothModule.Bluetoot
     @PluginMethod
     public void setWifiState(PluginCall call) {
         wifi.setWifiState(call);
+    }
+
+    @PluginMethod
+    public void getExternalSdCardDetails(PluginCall call) {
+        external_storage.getExternalSdCardDetails(call);
     }
 }

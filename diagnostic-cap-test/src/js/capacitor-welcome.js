@@ -1,5 +1,259 @@
 import { SplashScreen } from '@capacitor/splash-screen';
 import { Camera } from '@capacitor/camera';
+import { registerPlugin } from '@capacitor/core';
+
+const DiagnosticPlugin = registerPlugin('DiagnosticPlugin');
+
+const LOG_PREFIX = 'DiagnosticTest';
+
+// -----------------------
+// Diagnostic helpers
+// -----------------------
+
+function log(section, label, obj) {
+  console.log(`${LOG_PREFIX} --- ${section} -- ${label}`, JSON.stringify(obj));
+}
+
+function logInfo(section, message) {
+  console.log(`${LOG_PREFIX} --- ${section} -- ${message}`);
+}
+
+function logError(section, label, error) {
+  console.error(`${LOG_PREFIX} --- ${section} -- ${label}`, error);
+}
+
+async function safeCall(section, label, fn) {
+  try {
+    const res = await fn();
+    log(section, label, res);
+    return res;
+  } catch (e) {
+    logError(section, label, e);
+    return null;
+  }
+}
+
+function setMarker(text) {
+  let el = document.getElementById('diag-smoke');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'diag-smoke';
+    el.style.cssText =
+      'position:fixed;top:0;left:0;z-index:99999;padding:6px;background:#000;color:#0f0;font-family:monospace;';
+    document.body.appendChild(el);
+  }
+  el.textContent = text;
+  document.title = text;
+}
+
+async function diagSmokeMarker() {
+  setMarker('DIAG_PENDING');
+
+  try {
+    const result = await DiagnosticPlugin.getExternalSdCardDetails();
+    const details = result?.details ?? [];
+    const count = Array.isArray(details) ? details.length : 0;
+
+    setMarker(`DIAG_OK:EXT_SD_COUNT=${count}`);
+  } catch (e) {
+    setMarker(`DIAG_FAIL:${e && e.message ? e.message : String(e)}`);
+  }
+}
+
+async function runDiagnosticSmokeTests() {
+  logInfo('General', '=== DiagnosticPlugin EXTERNAL STORAGE smoke test ===');
+
+  // -----------------------
+  // External Storage
+  // -----------------------
+
+  logInfo('ExternalStorage', '--- START ---');
+
+  const external_storage = await safeCall(
+    'ExternalStorage',
+    'getExternalSdCardDetails',
+    () => DiagnosticPlugin.getExternalSdCardDetails()
+  );
+
+  const details = external_storage?.details ?? [];
+
+  if (Array.isArray(details)) {
+    logInfo('ExternalStorage', `details_count=${details.length}`);
+
+    details.forEach((detail, index) => {
+      log('ExternalStorage', `detail[${index}]`, detail);
+    });
+  } else {
+    logError(
+      'ExternalStorage',
+      'details shape',
+      new Error('Expected result.details to be an array')
+    );
+  }
+
+  /*
+  // -----------------------
+  // Wifi
+  // -----------------------
+
+  logInfo('Wifi', '--- START ---');
+
+  await safeCall('Wifi', 'isWifiAvailable', () => DiagnosticPlugin.isWifiAvailable());
+  await safeCall('Wifi', 'isWifiEnabled', () => DiagnosticPlugin.isWifiEnabled());
+
+  // Manual settings navigation check:
+  // await safeCall('Wifi', 'switchToWifiSettings', () =>
+  //   DiagnosticPlugin.switchToWifiSettings()
+  // );
+
+  logInfo('Wifi', '--- SET STATE TESTS ---');
+
+  await safeCall('Wifi', 'setWifiState(false)', () =>
+    DiagnosticPlugin.setWifiState({ enable: false })
+  );
+
+  await safeCall('Wifi', 'setWifiState(true)', () =>
+    DiagnosticPlugin.setWifiState({ enable: true })
+  );
+
+  await safeCall('Wifi', 'isWifiAvailable [after setWifiState]', () =>
+    DiagnosticPlugin.isWifiAvailable()
+  );
+
+  await safeCall('Wifi', 'isWifiEnabled [after setWifiState]', () =>
+    DiagnosticPlugin.isWifiEnabled()
+  );
+  */
+
+  /*
+  // -----------------------
+  // Bluetooth
+  // -----------------------
+
+  let bluetoothListener = null;
+
+  try {
+    bluetoothListener = await DiagnosticPlugin.addListener('bluetoothStateChange', event => {
+      log('Bluetooth', 'bluetoothStateChange', event);
+    });
+  } catch (e) {
+    logError('Bluetooth', 'addListener(bluetoothStateChange)', e);
+  }
+
+  logInfo('Bluetooth', '--- START ---');
+
+  await safeCall('Bluetooth', 'ensureBluetoothManager()', () =>
+    DiagnosticPlugin.ensureBluetoothManager()
+  );
+
+  await safeCall('Bluetooth', 'getBluetoothState', () =>
+    DiagnosticPlugin.getBluetoothState()
+  );
+  await safeCall('Bluetooth', 'isBluetoothAvailable', () =>
+    DiagnosticPlugin.isBluetoothAvailable()
+  );
+  await safeCall('Bluetooth', 'isBluetoothEnabled', () =>
+    DiagnosticPlugin.isBluetoothEnabled()
+  );
+
+  await safeCall('Bluetooth', 'hasBluetoothSupport', () =>
+    DiagnosticPlugin.hasBluetoothSupport()
+  );
+  await safeCall('Bluetooth', 'hasBluetoothLESupport', () =>
+    DiagnosticPlugin.hasBluetoothLESupport()
+  );
+  await safeCall('Bluetooth', 'hasBluetoothLEPeripheralSupport', () =>
+    DiagnosticPlugin.hasBluetoothLEPeripheralSupport()
+  );
+
+  await safeCall('Bluetooth', 'getBluetoothAuthorizationStatus', () =>
+    DiagnosticPlugin.getBluetoothAuthorizationStatus()
+  );
+
+  await safeCall('Bluetooth', 'requestBluetoothAuthorization()', () =>
+    DiagnosticPlugin.requestBluetoothAuthorization()
+  );
+
+  await safeCall('Bluetooth', 'getBluetoothAuthorizationStatuses', () =>
+    DiagnosticPlugin.getBluetoothAuthorizationStatuses()
+  );
+
+  if (bluetoothListener && bluetoothListener.remove) {
+    try {
+      await bluetoothListener.remove();
+    } catch (e) {
+      logError('Bluetooth', 'remove bluetooth listener', e);
+    }
+  }
+  */
+
+  /*
+  // -----------------------
+  // Camera
+  // -----------------------
+
+  logInfo('Camera', '--- START ---');
+
+  await safeCall('Camera', 'isCameraPresent', () =>
+    DiagnosticPlugin.isCameraPresent()
+  );
+
+  await safeCall('Camera', 'getCameraAuthorizationStatus [camera-only]', () =>
+    DiagnosticPlugin.getCameraAuthorizationStatus({ storage: false })
+  );
+
+  await safeCall('Camera', 'getCameraAuthorizationStatuses [with-storage]', () =>
+    DiagnosticPlugin.getCameraAuthorizationStatuses({ storage: true })
+  );
+
+  await safeCall('Camera', 'requestCameraAuthorization [camera-only]', () =>
+    DiagnosticPlugin.requestCameraAuthorization({ storage: false })
+  );
+
+  await safeCall('Camera', 'requestCameraAuthorization [camera+storage]', () =>
+    DiagnosticPlugin.requestCameraAuthorization({ storage: true })
+  );
+  */
+
+  /*
+  // -----------------------
+  // Notifications
+  // -----------------------
+
+  logInfo('Notifications', '--- START ---');
+
+  await safeCall('Notifications', 'getRemoteNotificationsAuthorizationStatus', () =>
+    DiagnosticPlugin.getRemoteNotificationsAuthorizationStatus()
+  );
+
+  await safeCall('Notifications', 'isRemoteNotificationsEnabled', () =>
+    DiagnosticPlugin.isRemoteNotificationsEnabled()
+  );
+
+  await safeCall('Notifications', 'getRemoteNotificationTypes', () =>
+    DiagnosticPlugin.getRemoteNotificationTypes()
+  );
+
+  await safeCall('Notifications', 'isRegisteredForRemoteNotifications', () =>
+    DiagnosticPlugin.isRegisteredForRemoteNotifications()
+  );
+
+  await safeCall('Notifications', 'requestRemoteNotificationsAuthorization', () =>
+    DiagnosticPlugin.requestRemoteNotificationsAuthorization({
+      types: ['alert', 'sound', 'badge'],
+      omitRegistration: false,
+    })
+  );
+  */
+
+  await diagSmokeMarker();
+
+  logInfo('General', '=== Done ===');
+}
+
+// -----------------------
+// UI components
+// -----------------------
 
 window.customElements.define(
   'capacitor-welcome',
@@ -92,7 +346,7 @@ window.customElements.define(
     connectedCallback() {
       const self = this;
 
-      self.shadowRoot.querySelector('#take-photo').addEventListener('click', async function (e) {
+      self.shadowRoot.querySelector('#take-photo').addEventListener('click', async function () {
         try {
           const photo = await Camera.getPhoto({
             resultType: 'uri',
@@ -108,6 +362,8 @@ window.customElements.define(
           console.warn('User cancelled', e);
         }
       });
+
+      runDiagnosticSmokeTests();
     }
   },
 );
@@ -140,268 +396,3 @@ window.customElements.define(
     }
   },
 );
-import { registerPlugin } from '@capacitor/core';
-
-const DiagnosticPlugin = registerPlugin('DiagnosticPlugin');
-
-const LOG_PREFIX = 'DiagnosticTest';
-
-function log(section, label, obj) {
-  console.log(`${LOG_PREFIX} --- ${section} -- ${label}`, JSON.stringify(obj));
-}
-
-function logInfo(section, message) {
-  console.log(`${LOG_PREFIX} --- ${section} -- ${message}`);
-}
-
-function logError(section, label, error) {
-  console.error(`${LOG_PREFIX} --- ${section} -- ${label}`, error);
-}
-
-async function safeCall(section, label, fn) {
-  try {
-    const res = await fn();
-    log(section, label, res);
-    return res;
-  } catch (e) {
-    logError(section, label, e);
-    return null;
-  }
-}
-
-function setMarker(text) {
-  let el = document.getElementById('diag-smoke');
-  if (!el) {
-    el = document.createElement('div');
-    el.id = 'diag-smoke';
-    el.style.cssText =
-      'position:fixed;top:0;left:0;z-index:99999;padding:6px;background:#000;color:#0f0;font-family:monospace;';
-    document.body.appendChild(el);
-  }
-  el.textContent = text;
-  document.title = text;
-}
-
-async function diagSmokeMarker() {
-  setMarker('DIAG_PENDING');
-  try {
-    const available = await DiagnosticPlugin.isWifiAvailable();
-    const enabled = await DiagnosticPlugin.isWifiEnabled();
-
-    setMarker(
-      `DIAG_OK:WIFI_AVAIL=${available?.available ?? false}|WIFI_EN=${enabled?.enabled ?? false}`
-    );
-  } catch (e) {
-    setMarker(`DIAG_FAIL:${e && e.message ? e.message : String(e)}`);
-  }
-}
-
-(async () => {
-  logInfo('General', '=== DiagnosticPlugin WIFI smoke test ===');
-
-  /*
-  // -----------------------
-  // Bluetooth (temporarily disabled)
-  // -----------------------
-
-  let bluetoothListener = null;
-
-  try {
-    bluetoothListener = await DiagnosticPlugin.addListener('bluetoothStateChange', event => {
-      log('Bluetooth', 'bluetoothStateChange', event);
-    });
-  } catch (e) {
-    logError('Bluetooth', 'addListener(bluetoothStateChange)', e);
-  }
-
-  logInfo('Bluetooth', '--- START ---');
-
-  await safeCall('Bluetooth', 'ensureBluetoothManager()', () =>
-    DiagnosticPlugin.ensureBluetoothManager()
-  );
-
-  await safeCall('Bluetooth', 'getBluetoothState', () =>
-    DiagnosticPlugin.getBluetoothState()
-  );
-  await safeCall('Bluetooth', 'isBluetoothAvailable', () =>
-    DiagnosticPlugin.isBluetoothAvailable()
-  );
-  await safeCall('Bluetooth', 'isBluetoothEnabled', () =>
-    DiagnosticPlugin.isBluetoothEnabled()
-  );
-
-  await safeCall('Bluetooth', 'hasBluetoothSupport', () =>
-    DiagnosticPlugin.hasBluetoothSupport()
-  );
-  await safeCall('Bluetooth', 'hasBluetoothLESupport', () =>
-    DiagnosticPlugin.hasBluetoothLESupport()
-  );
-  await safeCall('Bluetooth', 'hasBluetoothLEPeripheralSupport', () =>
-    DiagnosticPlugin.hasBluetoothLEPeripheralSupport()
-  );
-
-  logInfo('Bluetooth', '--- AUTH BEFORE REQUEST ---');
-  await safeCall('Bluetooth', 'getBluetoothAuthorizationStatus [before]', () =>
-    DiagnosticPlugin.getBluetoothAuthorizationStatus()
-  );
-
-  logInfo('Bluetooth', '--- REQUEST AUTH ---');
-  await safeCall('Bluetooth', 'requestBluetoothAuthorization()', () =>
-    DiagnosticPlugin.requestBluetoothAuthorization()
-  );
-
-  logInfo('Bluetooth', '--- AUTH AFTER REQUEST ---');
-  await safeCall('Bluetooth', 'getBluetoothAuthorizationStatus [after]', () =>
-    DiagnosticPlugin.getBluetoothAuthorizationStatus()
-  );
-
-  await safeCall('Bluetooth', 'getBluetoothAuthorizationStatuses [after]', () =>
-    DiagnosticPlugin.getBluetoothAuthorizationStatuses()
-  );
-  */
-
-  // -----------------------
-  // Wifi
-  // -----------------------
-
-  logInfo('Wifi', '--- START ---');
-
-  await safeCall('Wifi', 'isWifiAvailable', () => DiagnosticPlugin.isWifiAvailable());
-  await safeCall('Wifi', 'isWifiEnabled', () => DiagnosticPlugin.isWifiEnabled());
-
-  // Manual settings navigation check:
-  // await safeCall('Wifi', 'switchToWifiSettings', () =>
-  //   DiagnosticPlugin.switchToWifiSettings()
-  // );
-
-  logInfo('Wifi', '--- SET STATE TESTS ---');
-
-  // On Android 10+ these calls are expected to reject because the platform
-  // no longer allows normal third-party apps to change Wi-Fi state directly.
-  await safeCall('Wifi', 'setWifiState(false)', () =>
-    DiagnosticPlugin.setWifiState({ enable: false })
-  );
-
-  await safeCall('Wifi', 'setWifiState(true)', () =>
-    DiagnosticPlugin.setWifiState({ enable: true })
-  );
-
-  await safeCall('Wifi', 'isWifiAvailable [after setWifiState]', () =>
-    DiagnosticPlugin.isWifiAvailable()
-  );
-
-  await safeCall('Wifi', 'isWifiEnabled [after setWifiState]', () =>
-    DiagnosticPlugin.isWifiEnabled()
-  );
-
-  /*
-  // -----------------------
-  // Camera
-  // -----------------------
-
-  logInfo('Camera', '--- START ---');
-
-  await safeCall('Camera', 'isCameraPresent', () =>
-    DiagnosticPlugin.isCameraPresent()
-  );
-
-  logInfo('Camera', '--- AUTH BEFORE REQUEST (camera only) ---');
-  await safeCall('Camera', 'getCameraAuthorizationStatus [before][camera-only]', () =>
-    DiagnosticPlugin.getCameraAuthorizationStatus({ storage: false })
-  );
-
-  await safeCall('Camera', 'getCameraAuthorizationStatuses [before][with-storage]', () =>
-    DiagnosticPlugin.getCameraAuthorizationStatuses({ storage: true })
-  );
-
-  logInfo('Camera', '--- REQUEST AUTH (camera only) ---');
-  await safeCall('Camera', 'requestCameraAuthorization [camera-only]', () =>
-    DiagnosticPlugin.requestCameraAuthorization({ storage: false })
-  );
-
-  logInfo('Camera', '--- AUTH AFTER REQUEST (camera only) ---');
-  await safeCall('Camera', 'getCameraAuthorizationStatus [after][camera-only]', () =>
-    DiagnosticPlugin.getCameraAuthorizationStatus({ storage: false })
-  );
-
-  logInfo('Camera', '--- REQUEST AUTH (camera + storage) ---');
-  await safeCall('Camera', 'requestCameraAuthorization [camera+storage]', () =>
-    DiagnosticPlugin.requestCameraAuthorization({ storage: true })
-  );
-
-  await safeCall('Camera', 'getCameraAuthorizationStatus [after][camera+storage]', () =>
-    DiagnosticPlugin.getCameraAuthorizationStatus({ storage: true })
-  );
-
-  await safeCall('Camera', 'getCameraAuthorizationStatuses [after][camera+storage]', () =>
-    DiagnosticPlugin.getCameraAuthorizationStatuses({ storage: true })
-  );
-
-  // -----------------------
-  // Notifications
-  // -----------------------
-
-  logInfo('Notifications', '--- START ---');
-
-  logInfo('Notifications', '--- BEFORE REQUEST ---');
-  await safeCall('Notifications', 'getRemoteNotificationsAuthorizationStatus [before]', () =>
-    DiagnosticPlugin.getRemoteNotificationsAuthorizationStatus()
-  );
-
-  await safeCall('Notifications', 'isRemoteNotificationsEnabled [before]', () =>
-    DiagnosticPlugin.isRemoteNotificationsEnabled()
-  );
-
-  await safeCall('Notifications', 'getRemoteNotificationTypes [before]', () =>
-    DiagnosticPlugin.getRemoteNotificationTypes()
-  );
-
-  await safeCall('Notifications', 'isRegisteredForRemoteNotifications [before]', () =>
-    DiagnosticPlugin.isRegisteredForRemoteNotifications()
-  );
-
-  logInfo('Notifications', '--- REQUEST AUTH ---');
-  await safeCall('Notifications', 'requestRemoteNotificationsAuthorization', () =>
-    DiagnosticPlugin.requestRemoteNotificationsAuthorization({
-      types: ['alert', 'sound', 'badge'],
-      omitRegistration: false,
-    })
-  );
-
-  logInfo('Notifications', '--- AFTER REQUEST ---');
-  await safeCall('Notifications', 'getRemoteNotificationsAuthorizationStatus [after]', () =>
-    DiagnosticPlugin.getRemoteNotificationsAuthorizationStatus()
-  );
-
-  await safeCall('Notifications', 'isRemoteNotificationsEnabled [after]', () =>
-    DiagnosticPlugin.isRemoteNotificationsEnabled()
-  );
-
-  await safeCall('Notifications', 'getRemoteNotificationTypes [after]', () =>
-    DiagnosticPlugin.getRemoteNotificationTypes()
-  );
-
-  await safeCall('Notifications', 'isRegisteredForRemoteNotifications [after]', () =>
-    DiagnosticPlugin.isRegisteredForRemoteNotifications()
-  );
-
-  // Optional manual check:
-  // await safeCall('Notifications', 'switchToNotificationSettings', () =>
-  //   DiagnosticPlugin.switchToNotificationSettings()
-  // );
-  */
-
-  await diagSmokeMarker();
-
-  /*
-  if (bluetoothListener && bluetoothListener.remove) {
-    try {
-      await bluetoothListener.remove();
-    } catch (e) {
-      logError('Bluetooth', 'remove bluetooth listener', e);
-    }
-  }
-  */
-
-  logInfo('General', '=== Done ===');
-})();

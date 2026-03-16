@@ -1,5 +1,5 @@
 import { WebPlugin } from '@capacitor/core';
-import type { DiagnosticPlugin } from './definitions';
+import type { DiagnosticPlugin, ExternalSdCardDetail } from './definitions';
 
 export class DiagnosticPluginWeb extends WebPlugin implements DiagnosticPlugin {
   // -----------------------
@@ -247,5 +247,9 @@ export class DiagnosticPluginWeb extends WebPlugin implements DiagnosticPlugin {
 
   async requestRemindersAuthorization(): Promise<{ value: boolean }> {
     throw this.unavailable('Reminders not available on web');
+  }
+
+  async getExternalSdCardDetails(): Promise<ExternalSdCardDetail[]> {
+    return [];
   }
 }

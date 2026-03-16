@@ -58,6 +58,7 @@ npx cap sync
 * [`setWifiState(...)`](#setwifistate)
 * [`requestLocalNetworkAuthorization(...)`](#requestlocalnetworkauthorization)
 * [`getLocalNetworkAuthorizationStatus(...)`](#getlocalnetworkauthorizationstatus)
+* [`getExternalSdCardDetails()`](#getexternalsdcarddetails)
 * [`isMicrophoneAuthorized()`](#ismicrophoneauthorized)
 * [`getMicrophoneAuthorizationStatus()`](#getmicrophoneauthorizationstatus)
 * [`requestMicrophoneAuthorization()`](#requestmicrophoneauthorization)
@@ -729,6 +730,22 @@ iOS values:
 --------------------
 
 
+### getExternalSdCardDetails()
+
+```typescript
+getExternalSdCardDetails() => Promise<ExternalSdCardDetail[]>
+```
+
+Returns details for detected removable external SD card paths.
+
+Cordova parity:
+returns the array directly, not wrapped in an object.
+
+**Returns:** <code>Promise&lt;ExternalSdCardDetail[]&gt;</code>
+
+--------------------
+
+
 ### isMicrophoneAuthorized()
 
 ```typescript
@@ -967,6 +984,17 @@ Returns true if permission is granted after the request.
 | Prop         | Type                                      |
 | ------------ | ----------------------------------------- |
 | **`remove`** | <code>() =&gt; Promise&lt;void&gt;</code> |
+
+
+#### ExternalSdCardDetail
+
+| Prop            | Type                                 |
+| --------------- | ------------------------------------ |
+| **`path`**      | <code>string</code>                  |
+| **`filePath`**  | <code>string</code>                  |
+| **`canWrite`**  | <code>boolean</code>                 |
+| **`freeSpace`** | <code>number</code>                  |
+| **`type`**      | <code>'root' \| 'application'</code> |
 
 
 ### Type Aliases
