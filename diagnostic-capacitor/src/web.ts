@@ -249,7 +249,23 @@ export class DiagnosticPluginWeb extends WebPlugin implements DiagnosticPlugin {
     throw this.unavailable('Reminders not available on web');
   }
 
-  async getExternalSdCardDetails(): Promise<ExternalSdCardDetail[]> {
-    return [];
+  async getExternalSdCardDetails(): Promise<{ details: ExternalSdCardDetail[] }> {
+    return { details: [] };
+  }
+
+    async switchToNFCSettings(): Promise<void> {
+    throw this.unavailable('NFC settings are not available on web.');
+  }
+
+  async isNFCPresent(): Promise<{ present: boolean }> {
+    return { present: false };
+  }
+
+  async isNFCEnabled(): Promise<{ enabled: boolean }> {
+    return { enabled: false };
+  }
+
+  async isNFCAvailable(): Promise<{ available: boolean }> {
+    return { available: false };
   }
 }

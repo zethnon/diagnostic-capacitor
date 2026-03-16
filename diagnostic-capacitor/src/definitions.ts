@@ -328,7 +328,7 @@ export interface DiagnosticPlugin {
    * Cordova parity:
    * returns the array directly, not wrapped in an object.
    */
-  getExternalSdCardDetails(): Promise<ExternalSdCardDetail[]>;
+  getExternalSdCardDetails(): Promise<{ details: ExternalSdCardDetail[] }>;
 
   // -----------------------
   // Microphone
@@ -440,4 +440,76 @@ export interface DiagnosticPlugin {
    * Returns true if permission is granted after the request.
    */
   requestRemindersAuthorization(): Promise<{ value: boolean }>;
+
+  // -----------------------
+  // NFC
+  // -----------------------
+
+  /**
+   * Opens the OS-level NFC settings screen.
+   *
+   * Android:
+   * Opens the system NFC settings panel using
+   * Settings.ACTION_NFC_SETTINGS (or wireless settings on older versions).
+   *
+   * iOS:
+   * Not supported — iOS does not expose a direct NFC settings screen.
+   * Calls may be rejected or behave as a no-op depending on implementation.
+   */
+  switchToNFCSettings(): Promise<void>;
+
+  /**
+   * True if the device contains NFC hardware.
+   *
+   * Android:
+   * Checks for the presence of an NFC adapter via NfcManager/NfcAdapter.
+   *
+   * iOS:
+   * Returns best-effort parity. Devices that support CoreNFC will return true.
+   */
+  isNFCPresent(): Promise<{ present: boolean }>;
+
+  /**
+   * Returns whether NFC is currently enabled at the OS level.
+   *
+   * Android:
+   * Uses NfcAdapter.isEnabled().
+   *
+   * iOS:
+   * NFC is managed by the system and generally considered enabled when available.
+   */
+  isNFCEnabled(): Promise<{ enabled: boolean }>;
+
+  /**
+   * True if NFC is both present and enabled.
+   *
+   * This method combines:
+   * - hardware presence
+   * - adapter enabled state
+   *
+   * Android:
+   * Equivalent to:
+   *   isNFCPresent && isNFCEnabled
+   */
+  isNFCAvailable(): Promise<{ available: boolean }>;
+
+  /**
+   * NFC adapter state change event.
+   *
+   * Fired when the underlying NFC adapter state changes.
+   *
+   * Possible state values (Cordova parity):
+   * - "powered_on"
+   * - "powered_off"
+   * - "powering_on"
+   * - "powering_off"
+   * - "unknown"
+   *
+   * Android:
+   * Triggered from NfcAdapter.ACTION_ADAPTER_STATE_CHANGED broadcasts.
+   */
+  addListener(
+    eventName: 'nfcStateChange',
+    listenerFunc: (event: { state: string }) => void
+  ): Promise<PluginListenerHandle>;
 }

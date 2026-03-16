@@ -69,6 +69,11 @@ npx cap sync
 * [`getRemindersAuthorizationStatus()`](#getremindersauthorizationstatus)
 * [`isRemindersAuthorized()`](#isremindersauthorized)
 * [`requestRemindersAuthorization()`](#requestremindersauthorization)
+* [`switchToNFCSettings()`](#switchtonfcsettings)
+* [`isNFCPresent()`](#isnfcpresent)
+* [`isNFCEnabled()`](#isnfcenabled)
+* [`isNFCAvailable()`](#isnfcavailable)
+* [`addListener('nfcStateChange', ...)`](#addlistenernfcstatechange-)
 * [Interfaces](#interfaces)
 * [Type Aliases](#type-aliases)
 
@@ -733,7 +738,7 @@ iOS values:
 ### getExternalSdCardDetails()
 
 ```typescript
-getExternalSdCardDetails() => Promise<ExternalSdCardDetail[]>
+getExternalSdCardDetails() => Promise<{ details: ExternalSdCardDetail[]; }>
 ```
 
 Returns details for detected removable external SD card paths.
@@ -741,7 +746,7 @@ Returns details for detected removable external SD card paths.
 Cordova parity:
 returns the array directly, not wrapped in an object.
 
-**Returns:** <code>Promise&lt;ExternalSdCardDetail[]&gt;</code>
+**Returns:** <code>Promise&lt;{ details: ExternalSdCardDetail[]; }&gt;</code>
 
 --------------------
 
@@ -921,6 +926,114 @@ Requests reminders authorization.
 Returns true if permission is granted after the request.
 
 **Returns:** <code>Promise&lt;{ value: boolean; }&gt;</code>
+
+--------------------
+
+
+### switchToNFCSettings()
+
+```typescript
+switchToNFCSettings() => Promise<void>
+```
+
+Opens the OS-level NFC settings screen.
+
+Android:
+Opens the system NFC settings panel using
+Settings.ACTION_NFC_SETTINGS (or wireless settings on older versions).
+
+iOS:
+Not supported — iOS does not expose a direct NFC settings screen.
+Calls may be rejected or behave as a no-op depending on implementation.
+
+--------------------
+
+
+### isNFCPresent()
+
+```typescript
+isNFCPresent() => Promise<{ present: boolean; }>
+```
+
+True if the device contains NFC hardware.
+
+Android:
+Checks for the presence of an NFC adapter via NfcManager/NfcAdapter.
+
+iOS:
+Returns best-effort parity. Devices that support CoreNFC will return true.
+
+**Returns:** <code>Promise&lt;{ present: boolean; }&gt;</code>
+
+--------------------
+
+
+### isNFCEnabled()
+
+```typescript
+isNFCEnabled() => Promise<{ enabled: boolean; }>
+```
+
+Returns whether NFC is currently enabled at the OS level.
+
+Android:
+Uses NfcAdapter.isEnabled().
+
+iOS:
+NFC is managed by the system and generally considered enabled when available.
+
+**Returns:** <code>Promise&lt;{ enabled: boolean; }&gt;</code>
+
+--------------------
+
+
+### isNFCAvailable()
+
+```typescript
+isNFCAvailable() => Promise<{ available: boolean; }>
+```
+
+True if NFC is both present and enabled.
+
+This method combines:
+- hardware presence
+- adapter enabled state
+
+Android:
+Equivalent to:
+  isNFCPresent && isNFCEnabled
+
+**Returns:** <code>Promise&lt;{ available: boolean; }&gt;</code>
+
+--------------------
+
+
+### addListener('nfcStateChange', ...)
+
+```typescript
+addListener(eventName: 'nfcStateChange', listenerFunc: (event: { state: string; }) => void) => Promise<PluginListenerHandle>
+```
+
+NFC adapter state change event.
+
+Fired when the underlying NFC adapter state changes.
+
+Possible state values (Cordova parity):
+- "powered_on"
+- "powered_off"
+- "powering_on"
+- "powering_off"
+- "unknown"
+
+Android:
+Triggered from NfcAdapter.ACTION_ADAPTER_STATE_CHANGED broadcasts.
+
+| Param              | Type                                                |
+| ------------------ | --------------------------------------------------- |
+| **`eventName`**    | <code>'nfcStateChange'</code>                       |
+| **`listenerFunc`** | <code>(event: { state: string; }) =&gt; void</code> |
+
+**Returns:** <code>Promise&lt;<a href="#pluginlistenerhandle">PluginListenerHandle</a>&gt;</code>
 
 --------------------
 

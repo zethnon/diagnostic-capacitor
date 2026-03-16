@@ -50,19 +50,55 @@ async function diagSmokeMarker() {
   setMarker('DIAG_PENDING');
 
   try {
-    const result = await DiagnosticPlugin.getExternalSdCardDetails();
-    const details = result?.details ?? [];
-    const count = Array.isArray(details) ? details.length : 0;
+    const present = await DiagnosticPlugin.isNFCPresent();
+    const enabled = await DiagnosticPlugin.isNFCEnabled();
+    const available = await DiagnosticPlugin.isNFCAvailable();
 
-    setMarker(`DIAG_OK:EXT_SD_COUNT=${count}`);
+    setMarker(
+      `DIAG_OK:NFC_PRESENT=${present?.present ? 1 : 0};NFC_ENABLED=${enabled?.enabled ? 1 : 0};NFC_AVAILABLE=${available?.available ? 1 : 0}`
+    );
   } catch (e) {
     setMarker(`DIAG_FAIL:${e && e.message ? e.message : String(e)}`);
   }
 }
 
 async function runDiagnosticSmokeTests() {
-  logInfo('General', '=== DiagnosticPlugin EXTERNAL STORAGE smoke test ===');
+  logInfo('General', '=== DiagnosticPlugin NFC smoke test ===');
 
+  // -----------------------
+  // NFC
+  // -----------------------
+
+  let nfcListener = null;
+
+  try {
+    nfcListener = await DiagnosticPlugin.addListener('nfcStateChange', event => {
+      log('NFC', 'nfcStateChange', event);
+    });
+  } catch (e) {
+    logError('NFC', 'addListener(nfcStateChange)', e);
+  }
+
+  logInfo('NFC', '--- START ---');
+
+  await safeCall('NFC', 'isNFCPresent', () => DiagnosticPlugin.isNFCPresent());
+  await safeCall('NFC', 'isNFCEnabled', () => DiagnosticPlugin.isNFCEnabled());
+  await safeCall('NFC', 'isNFCAvailable', () => DiagnosticPlugin.isNFCAvailable());
+
+  // Manual settings navigation check:
+   await safeCall('NFC', 'switchToNFCSettings', () =>
+     DiagnosticPlugin.switchToNFCSettings()
+  );
+
+  if (nfcListener && nfcListener.remove) {
+    try {
+      await nfcListener.remove();
+    } catch (e) {
+      logError('NFC', 'remove nfc listener', e);
+    }
+  }
+
+  /*
   // -----------------------
   // External Storage
   // -----------------------
@@ -90,6 +126,7 @@ async function runDiagnosticSmokeTests() {
       new Error('Expected result.details to be an array')
     );
   }
+  */
 
   /*
   // -----------------------

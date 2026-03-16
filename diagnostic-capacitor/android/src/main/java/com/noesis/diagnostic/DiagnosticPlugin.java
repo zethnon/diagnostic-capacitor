@@ -17,6 +17,8 @@ import com.noesis.diagnostic.modules.ExternalStorageModule;
 import com.noesis.diagnostic.modules.LocationModule;
 import com.noesis.diagnostic.modules.NotificationsModule;
 import com.noesis.diagnostic.modules.WifiModule;
+import com.noesis.diagnostic.modules.NfcModule;
+
 
 @CapacitorPlugin(
     name = "DiagnosticPlugin",
@@ -78,7 +80,7 @@ import com.noesis.diagnostic.modules.WifiModule;
         )
     }
 )
-public class DiagnosticPlugin extends Plugin implements BluetoothModule.BluetoothEventEmitter {
+public class DiagnosticPlugin extends Plugin implements BluetoothModule.BluetoothEventEmitter, NfcModule.NfcStateChangeEmitter {
 
     private LocationModule location;
     private BluetoothModule bluetooth;
@@ -86,6 +88,7 @@ public class DiagnosticPlugin extends Plugin implements BluetoothModule.Bluetoot
     private NotificationsModule notifications;
     private WifiModule wifi;
     private ExternalStorageModule external_storage;
+    private NfcModule nfc;
 
     @Override
     public void load() {
@@ -97,6 +100,7 @@ public class DiagnosticPlugin extends Plugin implements BluetoothModule.Bluetoot
         notifications = new NotificationsModule(this);
         wifi = new WifiModule(this);
         external_storage = new ExternalStorageModule(getContext());
+        nfc = new NfcModule(this, this);
 
         bluetooth.load();
     }
@@ -106,6 +110,11 @@ public class DiagnosticPlugin extends Plugin implements BluetoothModule.Bluetoot
         if (bluetooth != null) {
             bluetooth.handleOnDestroy();
         }
+
+        if (nfc != null) {
+            nfc.destroy();
+        }
+
         super.handleOnDestroy();
     }
 
@@ -409,5 +418,32 @@ public class DiagnosticPlugin extends Plugin implements BluetoothModule.Bluetoot
     @PluginMethod
     public void getExternalSdCardDetails(PluginCall call) {
         external_storage.getExternalSdCardDetails(call);
+    }
+
+    @PluginMethod
+    public void switchToNFCSettings(PluginCall call) {
+        nfc.switch_to_nfc_settings(call);
+    }
+
+    @PluginMethod
+    public void isNFCPresent(PluginCall call) {
+        nfc.is_nfc_present(call);
+    }
+
+    @PluginMethod
+    public void isNFCEnabled(PluginCall call) {
+        nfc.is_nfc_enabled(call);
+    }
+
+    @PluginMethod
+    public void isNFCAvailable(PluginCall call) {
+        nfc.is_nfc_available(call);
+    }
+
+    @Override
+    public void emit_nfc_state_change(String state) {
+        JSObject data = new JSObject();
+        data.put("state", state);
+        notifyListeners("nfcStateChange", data);
     }
 }
