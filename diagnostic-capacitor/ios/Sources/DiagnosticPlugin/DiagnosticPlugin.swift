@@ -8,6 +8,7 @@ public class DiagnosticPlugin: CAPPlugin {
     private lazy var bluetooth = BluetoothModule(plugin: self)
     private lazy var camera = CameraModule(plugin: self)
     private lazy var notifications = NotificationsModule(plugin: self)
+    private lazy var wifi = WifiModule(plugin: self)
 
     // -----------------------
     // Location
@@ -79,4 +80,13 @@ public class DiagnosticPlugin: CAPPlugin {
     @objc func getRemoteNotificationsAuthorizationStatus(_ call: CAPPluginCall) { notifications.getRemoteNotificationsAuthorizationStatus(call) }
     @objc func requestRemoteNotificationsAuthorization(_ call: CAPPluginCall) { notifications.requestRemoteNotificationsAuthorization(call) }
     @objc func switchToNotificationSettings(_ call: CAPPluginCall) { notifications.switchToNotificationSettings(call) }
+
+    // -----------------------
+    // Wifi
+    // -----------------------
+
+    @objc func isWifiAvailable(_ call: CAPPluginCall) { wifi.isWifiAvailable(call) }
+    @objc func isWifiEnabled(_ call: CAPPluginCall) { wifi.isWifiEnabled(call) }
+    @objc func requestLocalNetworkAuthorization(_ call: CAPPluginCall) { wifi.requestLocalNetworkAuthorization(call) }
+    @objc func getLocalNetworkAuthorizationStatus(_ call: CAPPluginCall) { wifi.getLocalNetworkAuthorizationStatus(call) }
 }

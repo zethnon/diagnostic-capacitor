@@ -526,7 +526,7 @@ Returns raw camera/media permission statuses map.
 isRemoteNotificationsEnabled() => Promise<{ enabled: boolean; }>
 ```
 
-True if remote/push notifications are enabled for the app.
+True if remote/push notifications are effectively enabled for the app.
 
 **Returns:** <code>Promise&lt;{ enabled: boolean; }&gt;</code>
 
@@ -539,9 +539,9 @@ True if remote/push notifications are enabled for the app.
 getRemoteNotificationTypes() => Promise<{ types: Record<string, '0' | '1'>; }>
 ```
 
-iOS only:
-Returns alert/sound/badge flags as Cordova-style strings ("0" | "1").
-Android returns best-effort parity or an empty object if unsupported.
+Returns Cordova-style notification types map.
+iOS returns actual alert/sound/badge values.
+Android returns best-effort parity using app-level notification enablement.
 
 **Returns:** <code>Promise&lt;{ types: <a href="#record">Record</a>&lt;string, '0' | '1'&gt;; }&gt;</code>
 
@@ -554,8 +554,7 @@ Android returns best-effort parity or an empty object if unsupported.
 isRegisteredForRemoteNotifications() => Promise<{ registered: boolean; }>
 ```
 
-iOS only:
-True if the app is currently registered for remote notifications.
+iOS exposes APNS registration state directly.
 Android returns best-effort parity.
 
 **Returns:** <code>Promise&lt;{ registered: boolean; }&gt;</code>
@@ -569,8 +568,7 @@ Android returns best-effort parity.
 getRemoteNotificationsAuthorizationStatus() => Promise<{ status: string; }>
 ```
 
-Returns Cordova-style authorization status:
-granted | denied | not_determined | provisional | ephemeral | unknown
+Returns notification authorization status.
 
 **Returns:** <code>Promise&lt;{ status: string; }&gt;</code>
 
@@ -583,9 +581,7 @@ granted | denied | not_determined | provisional | ephemeral | unknown
 requestRemoteNotificationsAuthorization(options?: { types?: ("alert" | "sound" | "badge")[] | undefined; omitRegistration?: boolean | undefined; } | undefined) => Promise<{ status: string; }>
 ```
 
-Requests remote notifications authorization.
-`types` may include: alert, sound, badge
-`omitRegistration` matches Cordova iOS behavior.
+Requests remote notification authorization.
 
 | Param         | Type                                                                                    |
 | ------------- | --------------------------------------------------------------------------------------- |
@@ -602,7 +598,7 @@ Requests remote notifications authorization.
 switchToNotificationSettings() => Promise<void>
 ```
 
-Opens app notification settings.
+Opens the app notification settings screen.
 
 --------------------
 

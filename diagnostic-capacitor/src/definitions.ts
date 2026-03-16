@@ -247,4 +247,66 @@ export interface DiagnosticPlugin {
    * Opens the app notification settings screen.
    */
   switchToNotificationSettings(): Promise<void>;
+
+  // -----------------------
+  // Wifi
+  // -----------------------
+
+  /**
+   * Opens the OS Wi-Fi settings screen.
+   */
+  switchToWifiSettings(): Promise<void>;
+
+  /**
+   * Cordova-parity check for Wi-Fi availability.
+   * On Android this maps to WifiManager.isWifiEnabled().
+   *
+   * Note:
+   * This does not guarantee the device is connected to a Wi-Fi network.
+   * It only reflects whether Wi-Fi is enabled at OS level.
+   */
+  isWifiAvailable(): Promise<{ available: boolean }>;
+
+  /**
+   * Returns whether Wi-Fi is enabled.
+   *
+   * On Android this is effectively the same underlying check as isWifiAvailable().
+   * We expose it separately because iOS has a distinct method and the Capacitor API
+   * should remain explicit.
+   */
+  isWifiEnabled(): Promise<{ enabled: boolean }>;
+
+  /**
+   * Attempts to enable/disable Wi-Fi.
+   *
+   * Important platform limitation:
+   * Android 10+ no longer allows normal third-party apps to change Wi-Fi state
+   * using the old WifiManager.setWifiEnabled() API.
+   *
+   * Therefore:
+   * - Android < 10: best-effort state change
+   * - Android 10+: rejected
+   * - iOS: rejected
+   */
+  setWifiState(options: { enable: boolean }): Promise<void>;
+
+ /**
+   * Requests local network authorization (iOS 14+).
+   * On unsupported platforms this may be unavailable.
+   */
+  requestLocalNetworkAuthorization(options?: {
+    timeoutMs?: number;
+  }): Promise<{ value: number }>;
+
+  /**
+   * Returns local network authorization status.
+   * iOS values:
+   *  1  = granted
+   *  0  = unknown / not requested
+   * -1  = denied
+   * -2  = indeterminate
+   */
+  getLocalNetworkAuthorizationStatus(options?: {
+    timeoutMs?: number;
+  }): Promise<{ value: number }>;
 }

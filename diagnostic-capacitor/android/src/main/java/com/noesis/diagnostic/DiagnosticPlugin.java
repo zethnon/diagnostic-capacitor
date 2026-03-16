@@ -15,6 +15,7 @@ import com.noesis.diagnostic.modules.BluetoothModule;
 import com.noesis.diagnostic.modules.CameraModule;
 import com.noesis.diagnostic.modules.LocationModule;
 import com.noesis.diagnostic.modules.NotificationsModule;
+import com.noesis.diagnostic.modules.WifiModule;
 
 @CapacitorPlugin(
     name = "DiagnosticPlugin",
@@ -82,8 +83,9 @@ public class DiagnosticPlugin extends Plugin implements BluetoothModule.Bluetoot
     private BluetoothModule bluetooth;
     private CameraModule cameraModule;
     private NotificationsModule notifications;
+    private WifiModule wifi;
 
-    @Override
+     @Override
     public void load() {
         super.load();
 
@@ -91,6 +93,7 @@ public class DiagnosticPlugin extends Plugin implements BluetoothModule.Bluetoot
         bluetooth = new BluetoothModule(this, this);
         cameraModule = new CameraModule(getContext());
         notifications = new NotificationsModule(this);
+        wifi = new WifiModule(this);
 
         bluetooth.load();
     }
@@ -394,5 +397,29 @@ public class DiagnosticPlugin extends Plugin implements BluetoothModule.Bluetoot
         } else {
             notifications.onNotificationsPermissionNotRequired(call);
         }
+    }
+    
+    // -----------------------
+    // Wifi
+    // -----------------------
+
+    @PluginMethod
+    public void switchToWifiSettings(PluginCall call) {
+        wifi.switchToWifiSettings(call);
+    }
+
+    @PluginMethod
+    public void isWifiAvailable(PluginCall call) {
+        wifi.isWifiAvailable(call);
+    }
+
+    @PluginMethod
+    public void isWifiEnabled(PluginCall call) {
+        wifi.isWifiEnabled(call);
+    }
+
+    @PluginMethod
+    public void setWifiState(PluginCall call) {
+        wifi.setWifiState(call);
     }
 }

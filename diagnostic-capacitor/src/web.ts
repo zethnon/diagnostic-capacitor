@@ -3,17 +3,25 @@ import type { DiagnosticPlugin } from './definitions';
 
 export class DiagnosticPluginWeb extends WebPlugin implements DiagnosticPlugin {
   // -----------------------
+  // helpers
+  // -----------------------
+
+  private not_implemented_status(): { status: string } {
+    return { status: 'not_implemented' };
+  }
+
+  // -----------------------
   // Location
   // -----------------------
 
   async getLocationAuthorizationStatus(): Promise<{ status: string }> {
-    return { status: 'not_implemented' };
+    return this.not_implemented_status();
   }
 
   async requestLocationAuthorization(_options?: {
     mode?: 'always' | 'when_in_use';
   }): Promise<{ status: string }> {
-    return { status: 'not_implemented' };
+    return this.not_implemented_status();
   }
 
   async isLocationEnabled(): Promise<{ enabled: boolean }> {
@@ -107,13 +115,13 @@ export class DiagnosticPluginWeb extends WebPlugin implements DiagnosticPlugin {
   async requestBluetoothAuthorization(_options?: {
     permissions?: Array<'BLUETOOTH_ADVERTISE' | 'BLUETOOTH_CONNECT' | 'BLUETOOTH_SCAN'>;
   }): Promise<{ status: string }> {
-    return { status: 'not_implemented' };
+    return this.not_implemented_status();
   }
 
   async ensureBluetoothManager(): Promise<void> {}
 
   async getBluetoothAuthorizationStatus(): Promise<{ status: string }> {
-    return { status: 'not_implemented' };
+    return this.not_implemented_status();
   }
 
   // -----------------------
@@ -127,13 +135,13 @@ export class DiagnosticPluginWeb extends WebPlugin implements DiagnosticPlugin {
   async requestCameraAuthorization(_options?: {
     storage?: boolean;
   }): Promise<{ status: string }> {
-    return { status: 'not_implemented' };
+    return this.not_implemented_status();
   }
 
   async getCameraAuthorizationStatus(_options?: {
     storage?: boolean;
   }): Promise<{ status: string }> {
-    return { status: 'not_implemented' };
+    return this.not_implemented_status();
   }
 
   async getCameraAuthorizationStatuses(_options?: {
@@ -159,15 +167,45 @@ export class DiagnosticPluginWeb extends WebPlugin implements DiagnosticPlugin {
   }
 
   async getRemoteNotificationsAuthorizationStatus(): Promise<{ status: string }> {
-    return { status: 'not_implemented' };
+    return this.not_implemented_status();
   }
 
   async requestRemoteNotificationsAuthorization(_options?: {
     types?: Array<'alert' | 'sound' | 'badge'>;
     omitRegistration?: boolean;
   }): Promise<{ status: string }> {
-    return { status: 'not_implemented' };
+    return this.not_implemented_status();
   }
 
   async switchToNotificationSettings(): Promise<void> {}
+
+  // -----------------------
+  // Wifi
+  // -----------------------
+
+  async switchToWifiSettings(): Promise<void> {}
+
+  async isWifiAvailable(): Promise<{ available: boolean }> {
+    return { available: false };
+  }
+
+  async isWifiEnabled(): Promise<{ enabled: boolean }> {
+    return { enabled: false };
+  }
+
+  async setWifiState(_options: { enable: boolean }): Promise<void> {
+    throw new Error('not_implemented');
+  }
+
+  async requestLocalNetworkAuthorization(_options?: {
+    timeoutMs?: number;
+  }): Promise<{ value: number }> {
+    return { value: 0 };
+  }
+
+  async getLocalNetworkAuthorizationStatus(_options?: {
+    timeoutMs?: number;
+  }): Promise<{ value: number }> {
+    return { value: 0 };
+  }
 }

@@ -55,4 +55,11 @@ CAP_PLUGIN(DiagnosticPlugin, "DiagnosticPlugin",
     CAP_PLUGIN_METHOD(getRemoteNotificationsAuthorizationStatus, CAPPluginReturnPromise);
     CAP_PLUGIN_METHOD(requestRemoteNotificationsAuthorization, CAPPluginReturnPromise);
     CAP_PLUGIN_METHOD(switchToNotificationSettings, CAPPluginReturnPromise);
+    // -----------------------
+    // Wifi
+    // -----------------------
+    CAP_PLUGIN_METHOD(isWifiAvailable, CAPPluginReturnPromise);
+    CAP_PLUGIN_METHOD(isWifiEnabled, CAPPluginReturnPromise);
+    CAP_PLUGIN_METHOD(requestLocalNetworkAuthorization, CAPPluginReturnPromise);
+    CAP_PLUGIN_METHOD(getLocalNetworkAuthorizationStatus, CAPPluginReturnPromise);
 )
