@@ -1,5 +1,3 @@
-// ios/Sources/DiagnosticPlugin/modules/ContactsModule.swift
-
 import Foundation
 import Capacitor
 import Contacts

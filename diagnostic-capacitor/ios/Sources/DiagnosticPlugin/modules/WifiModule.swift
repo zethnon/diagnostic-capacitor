@@ -28,8 +28,6 @@ import Network
         super.init()
     }
 
-    // MARK: - Local Network Plugin API
-
     @objc public func getLocalNetworkAuthorizationStatus(_ call: CAPPluginCall) {
         DispatchQueue.global(qos: .background).async {
             let cached = UserDefaults.standard.integer(forKey: self.local_network_permission_key)
@@ -144,7 +142,6 @@ import Network
         }
     }
 
-    // MARK: - Wifi Plugin API
 
     @objc public func isWifiAvailable(_ call: CAPPluginCall) {
         DispatchQueue.global(qos: .background).async {
@@ -158,7 +155,6 @@ import Network
         }
     }
 
-    // MARK: - Internals
 
     private func is_wifi_enabled() -> Bool {
         var interfaces: UnsafeMutablePointer<ifaddrs>?
@@ -313,8 +309,6 @@ import Network
         }
     }
 
-    // MARK: - NetServiceDelegate
-
     public func netServiceDidPublish(_ sender: NetService) {
         log_debug("netServiceDidPublish: Local network permission has been granted")
         complete_local_network_flow(with: .granted, should_cache: true)
@@ -327,7 +321,6 @@ import Network
         complete_local_network_flow(with: .indeterminate, should_cache: false)
     }
 
-    // MARK: - Helpers
 
     private func append_local_network_call(_ call: CAPPluginCall) {
         objc_sync_enter(self)

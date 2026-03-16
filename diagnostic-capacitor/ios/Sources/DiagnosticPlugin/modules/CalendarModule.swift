@@ -1,5 +1,3 @@
-// ios/Sources/DiagnosticPlugin/modules/CalendarModule.swift
-
 import Foundation
 import Capacitor
 import EventKit

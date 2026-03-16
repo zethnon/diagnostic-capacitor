@@ -77,6 +77,9 @@ npx cap sync
 * [`getCalendarAuthorizationStatus()`](#getcalendarauthorizationstatus)
 * [`isCalendarAuthorized()`](#iscalendarauthorized)
 * [`requestCalendarAuthorization()`](#requestcalendarauthorization)
+* [`getAddressBookAuthorizationStatus()`](#getaddressbookauthorizationstatus)
+* [`isAddressBookAuthorized()`](#isaddressbookauthorized)
+* [`requestAddressBookAuthorization()`](#requestaddressbookauthorization)
 * [Interfaces](#interfaces)
 * [Type Aliases](#type-aliases)
 
@@ -747,7 +750,7 @@ getExternalSdCardDetails() => Promise<{ details: ExternalSdCardDetail[]; }>
 Returns details for detected removable external SD card paths.
 
 Cordova parity:
-returns the array directly, not wrapped in an object.
+Returns removable external SD card details wrapped in a `details` property.
 
 **Returns:** <code>Promise&lt;{ details: ExternalSdCardDetail[]; }&gt;</code>
 
@@ -1079,6 +1082,52 @@ requestCalendarAuthorization() => Promise<{ value: boolean; }>
 ```
 
 Requests calendar authorization.
+
+Returns true if permission is granted after the request.
+
+**Returns:** <code>Promise&lt;{ value: boolean; }&gt;</code>
+
+--------------------
+
+
+### getAddressBookAuthorizationStatus()
+
+```typescript
+getAddressBookAuthorizationStatus() => Promise<{ value: string; }>
+```
+
+Returns address book / contacts authorization status using Cordova parity strings.
+
+Possible values:
+- "granted"
+- "denied"
+- "not_determined"
+
+**Returns:** <code>Promise&lt;{ value: string; }&gt;</code>
+
+--------------------
+
+
+### isAddressBookAuthorized()
+
+```typescript
+isAddressBookAuthorized() => Promise<{ value: boolean; }>
+```
+
+True if the app is currently authorized to access contacts.
+
+**Returns:** <code>Promise&lt;{ value: boolean; }&gt;</code>
+
+--------------------
+
+
+### requestAddressBookAuthorization()
+
+```typescript
+requestAddressBookAuthorization() => Promise<{ value: boolean; }>
+```
+
+Requests contacts authorization.
 
 Returns true if permission is granted after the request.
 

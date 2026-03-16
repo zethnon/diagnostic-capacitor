@@ -9,88 +9,89 @@ export interface ExternalSdCardDetail {
 }
 
 export interface DiagnosticPlugin {
+
   // -----------------------
   // Location
   // -----------------------
 
-  /**
-   * Returns the current location authorization status (Cordova parity strings).
-   */
+  /* 
+   Returns the current location authorization status (Cordova parity strings).
+  */
   getLocationAuthorizationStatus(): Promise<{ status: string }>;
 
-  /**
-   * Requests location authorization.
-   * `mode` maps to Cordova semantics: 'always' | 'when_in_use'
-   */
+  /*
+   Requests location authorization.
+   'mode' maps to Cordova semantics: 'always' | 'when_in_use'
+  */
   requestLocationAuthorization(options?: {
     mode?: 'always' | 'when_in_use';
   }): Promise<{ status: string }>;
 
-  /**
-   * True if location services are enabled at OS level.
-   */
+  /*
+   True if location services are enabled at OS level.
+  */
   isLocationEnabled(): Promise<{ enabled: boolean }>;
 
-  /**
-   * Opens the OS-level Location settings screen (best-effort per platform).
-   */
+  /*
+   Opens the OS-level Location settings screen (best-effort per platform).
+  */
   openLocationSettings(): Promise<void>;
 
-  /**
-   * True if location is available for use (authorization + services enabled, per Cordova behavior).
-   */
+  /*
+   True if location is available for use (authorization + services enabled, per Cordova behavior).
+  */
   isLocationAvailable(): Promise<{ available: boolean }>;
 
-  /**
-   * Returns the current location mode (platform-specific string, Cordova parity).
-   */
+  /*
+   Returns the current location mode (platform-specific string, Cordova parity).
+  */
   getLocationMode(): Promise<{ mode: string }>;
 
-  /**
-   * True if GPS provider is enabled (Android-specific; iOS returns best-effort parity).
-   */
+  /*
+   True if GPS provider is enabled (Android-specific; iOS returns best-effort parity).
+  */
   isGpsLocationEnabled(): Promise<{ enabled: boolean }>;
 
-  /**
-   * True if Network provider is enabled (Android-specific; iOS returns best-effort parity).
-   */
+  /*
+   True if Network provider is enabled (Android-specific; iOS returns best-effort parity).
+  */
   isNetworkLocationEnabled(): Promise<{ enabled: boolean }>;
 
-  /**
-   * True if GPS location is available (Android-specific; iOS returns best-effort parity).
-   */
+  /*
+   True if GPS location is available (Android-specific; iOS returns best-effort parity).
+  */
   isGpsLocationAvailable(): Promise<{ available: boolean }>;
 
-  /**
-   * True if Network location is available (Android-specific; iOS returns best-effort parity).
-   */
+  /*
+   True if Network location is available (Android-specific; iOS returns best-effort parity).
+  */
   isNetworkLocationAvailable(): Promise<{ available: boolean }>;
 
-  /**
-   * Opens the OS-level Location settings screen (Cordova-style method naming).
-   */
+  /*
+   Opens the OS-level Location settings screen (Cordova-style method naming).
+  */
   switchToLocationSettings(): Promise<void>;
 
-  /**
-   * True if device has a compass / magnetometer available.
-   */
+  /*
+   True if device has a compass / magnetometer available.
+  */
   isCompassAvailable(): Promise<{ available: boolean }>;
 
-  /**
-   * True if app is authorized to use location services (authorization only).
-   */
+  /*
+   True if app is authorized to use location services (authorization only).
+  */
   isLocationAuthorized(): Promise<{ value: boolean }>;
 
-  /**
-   * iOS-only accuracy authorization.
-   * Returns "full" or "reduced" (iOS 14+); other platforms default to "full".
-   */
+  /*
+   iOS-only accuracy authorization.
+   Returns "full" or "reduced" (iOS 14+); other platforms default to "full".
+  */
   getLocationAccuracyAuthorization(): Promise<{ value: 'full' | 'reduced' }>;
 
-  /**
-   * iOS-only temporary full accuracy request (iOS 14+).
-   * `purpose` must match a key in Info.plist (NSLocationTemporaryUsageDescriptionDictionary).
-   */
+  /*
+   iOS-only temporary full accuracy request (iOS 14+).
+   'purpose' must match a key in Info.plist (NSLocationTemporaryUsageDescriptionDictionary).
+  */
   requestTemporaryFullAccuracyAuthorization(options: {
     purpose: string;
   }): Promise<{ value: 'full' | 'reduced' }>;
@@ -99,80 +100,94 @@ export interface DiagnosticPlugin {
   // Bluetooth
   // -----------------------
 
-  /**
-   * Opens OS Bluetooth settings screen.
-   */
+  /*
+   Opens OS Bluetooth settings screen.
+  */
   switchToBluetoothSettings(): Promise<void>;
 
-  /**
-   * True if device supports Bluetooth and Bluetooth is enabled.
-   */
+  /*
+   True if device supports Bluetooth and Bluetooth is enabled.
+  */
   isBluetoothAvailable(): Promise<{ available: boolean }>;
 
-  /**
-   * True if Bluetooth adapter exists and is enabled.
-   */
+  /*
+   True if Bluetooth adapter exists and is enabled.
+  */
   isBluetoothEnabled(): Promise<{ enabled: boolean }>;
 
-  /**
-   * True if device has FEATURE_BLUETOOTH.
-   */
+  /*
+   True if device has FEATURE_BLUETOOTH.
+  */
   hasBluetoothSupport(): Promise<{ supported: boolean }>;
 
-  /**
-   * True if device has FEATURE_BLUETOOTH_LE.
-   */
+  /*
+   True if device has FEATURE_BLUETOOTH_LE.
+  */
   hasBluetoothLESupport(): Promise<{ supported: boolean }>;
 
-  /**
-   * True if adapter supports multiple advertisement (peripheral mode).
-   */
+  /*
+   True if adapter supports multiple advertisement (peripheral mode).
+  */
   hasBluetoothLEPeripheralSupport(): Promise<{ supported: boolean }>;
 
-  /**
-   * Attempts to enable/disable Bluetooth.
-   * Android 13+ rejects (matches Cordova behavior).
-   */
+  /*
+   Attempts to enable/disable Bluetooth.
+   Android 13+ rejects (matches Cordova behavior).
+  */
   setBluetoothState(options: { enable: boolean }): Promise<void>;
 
-  /**
-   * Returns Bluetooth hardware state string (Cordova parity):
-   * Android: unknown|powered_on|powered_off|powering_on|powering_off
-   * iOS: powered_on|powered_off|unauthorized|unsupported|resetting|unknown
-   */
+  /*
+   Returns Bluetooth hardware state string (Cordova parity):
+
+   Android:
+   unknown|powered_on|powered_off|powering_on|powering_off
+
+   iOS:
+   powered_on|powered_off|unauthorized|unsupported|resetting|unknown
+  */
   getBluetoothState(): Promise<{ state: string }>;
 
-  /**
-   * Android: returns per-permission status map for BLUETOOTH_* runtime permissions (SDK>=31).
-   * iOS: returns a single `authorization` string.
-   */
+  /*
+   Android:
+   returns per-permission status map for BLUETOOTH_* runtime permissions (SDK>=31).
+
+   iOS:
+   returns a single 'authorization' string.
+  */
   getBluetoothAuthorizationStatuses(): Promise<{
     statuses: Record<string, string>;
   }>;
 
-  /**
-   * Android: request BLUETOOTH_* permissions (optionally specify which).
-   * iOS: triggers permission prompt if not determined.
-   */
+  /*
+   Android:
+   request BLUETOOTH_* permissions (optionally specify which).
+
+   iOS:
+   triggers permission prompt if not determined.
+  */
   requestBluetoothAuthorization(options?: {
     permissions?: Array<'BLUETOOTH_ADVERTISE' | 'BLUETOOTH_CONNECT' | 'BLUETOOTH_SCAN'>;
   }): Promise<{ status: string }>;
 
-  /**
-   * iOS-only explicit init of Bluetooth manager (parity with Cordova).
-   * Android is a no-op.
-   */
+  /*
+   iOS-only explicit init of Bluetooth manager (parity with Cordova).
+   Android is a no-op.
+  */
   ensureBluetoothManager(): Promise<void>;
 
-  /**
-   * iOS-only single authorization status string (granted|denied|not_determined).
-   * Android returns derived status (granted if all requested perms granted, otherwise denied/denied_always).
-   */
+  /*
+   iOS-only single authorization status string
+   (granted|denied|not_determined).
+
+   Android returns derived status
+   (granted if all requested perms granted, otherwise denied/denied_always).
+  */
   getBluetoothAuthorizationStatus(): Promise<{ status: string }>;
 
-  /**
-   * Bluetooth state change event. Fired when underlying OS BT state changes.
-   */
+  /*
+   Bluetooth state change event.
+   Fired when underlying OS BT state changes.
+  */
   addListener(
     eventName: 'bluetoothStateChange',
     listenerFunc: (event: { state: string }) => void
@@ -184,30 +199,34 @@ export interface DiagnosticPlugin {
   // Camera
   // -----------------------
 
-  /**
-   * True if device has a camera.
-   */
+  /*
+   True if device has a camera.
+  */
   isCameraPresent(): Promise<{ present: boolean }>;
 
-  /**
-   * Requests camera authorization.
-   * If `storage` is true, also requests storage/media library permissions needed by Cordova parity.
-   */
+  /*
+   Requests camera authorization.
+
+   If 'storage' is true, also requests storage/media library
+   permissions needed by Cordova parity.
+  */
   requestCameraAuthorization(options?: {
     storage?: boolean;
   }): Promise<{ status: string }>;
 
-  /**
-   * Returns combined camera authorization status.
-   * If `storage` is true, combines camera + storage/media permissions using Cordova parity.
-   */
+  /*
+   Returns combined camera authorization status.
+
+   If 'storage' is true, combines camera + storage/media
+   permissions using Cordova parity.
+  */
   getCameraAuthorizationStatus(options?: {
     storage?: boolean;
   }): Promise<{ status: string }>;
 
-  /**
-   * Returns raw camera/media permission statuses map.
-   */
+  /*
+   Returns raw camera/media permission statuses map.
+  */
   getCameraAuthorizationStatuses(options?: {
     storage?: boolean;
   }): Promise<{
@@ -218,102 +237,114 @@ export interface DiagnosticPlugin {
   // Notifications
   // -----------------------
 
-  /**
-   * True if remote/push notifications are effectively enabled for the app.
-   */
+  /*
+   True if remote/push notifications are effectively enabled for the app.
+  */
   isRemoteNotificationsEnabled(): Promise<{ enabled: boolean }>;
 
-  /**
-   * Returns Cordova-style notification types map.
-   * iOS returns actual alert/sound/badge values.
-   * Android returns best-effort parity using app-level notification enablement.
-   */
+  /*
+   Returns Cordova-style notification types map.
+
+   iOS returns actual alert/sound/badge values.
+
+   Android returns best-effort parity using
+   app-level notification enablement.
+  */
   getRemoteNotificationTypes(): Promise<{
     types: Record<string, '0' | '1'>;
   }>;
 
-  /**
-   * iOS exposes APNS registration state directly.
-   * Android returns best-effort parity.
-   */
+  /*
+   iOS exposes APNS registration state directly.
+
+   Android returns best-effort parity.
+  */
   isRegisteredForRemoteNotifications(): Promise<{ registered: boolean }>;
 
-  /**
-   * Returns notification authorization status.
-   */
+  /*
+   Returns notification authorization status.
+  */
   getRemoteNotificationsAuthorizationStatus(): Promise<{ status: string }>;
 
-  /**
-   * Requests remote notification authorization.
-   */
+  /*
+   Requests remote notification authorization.
+  */
   requestRemoteNotificationsAuthorization(options?: {
     types?: Array<'alert' | 'sound' | 'badge'>;
     omitRegistration?: boolean;
   }): Promise<{ status: string }>;
 
-  /**
-   * Opens the app notification settings screen.
-   */
+  /*
+   Opens the app notification settings screen.
+  */
   switchToNotificationSettings(): Promise<void>;
 
   // -----------------------
   // Wifi
   // -----------------------
 
-  /**
-   * Opens the OS Wi-Fi settings screen.
-   */
+  /*
+   Opens the OS Wi-Fi settings screen.
+  */
   switchToWifiSettings(): Promise<void>;
 
-  /**
-   * Cordova-parity check for Wi-Fi availability.
-   * On Android this maps to WifiManager.isWifiEnabled().
-   *
-   * Note:
-   * This does not guarantee the device is connected to a Wi-Fi network.
-   * It only reflects whether Wi-Fi is enabled at OS level.
-   */
+  /*
+   Cordova-parity check for Wi-Fi availability.
+
+   On Android this maps to WifiManager.isWifiEnabled().
+
+   Note:
+   This does not guarantee the device is connected
+   to a Wi-Fi network.
+
+   It only reflects whether Wi-Fi is enabled at OS level.
+  */
   isWifiAvailable(): Promise<{ available: boolean }>;
 
-  /**
-   * Returns whether Wi-Fi is enabled.
-   *
-   * On Android this is effectively the same underlying check as isWifiAvailable().
-   * We expose it separately because iOS has a distinct method and the Capacitor API
-   * should remain explicit.
-   */
+  /*
+   Returns whether Wi-Fi is enabled.
+
+   On Android this is effectively the same underlying check
+   as isWifiAvailable().
+
+   We expose it separately because iOS has a distinct method
+   and the Capacitor API should remain explicit.
+  */
   isWifiEnabled(): Promise<{ enabled: boolean }>;
 
-  /**
-   * Attempts to enable/disable Wi-Fi.
-   *
-   * Important platform limitation:
-   * Android 10+ no longer allows normal third-party apps to change Wi-Fi state
-   * using the old WifiManager.setWifiEnabled() API.
-   *
-   * Therefore:
-   * - Android < 10: best-effort state change
-   * - Android 10+: rejected
-   * - iOS: rejected
-   */
+  /*
+   Attempts to enable/disable Wi-Fi.
+
+   Important platform limitation:
+
+   Android 10+ no longer allows normal third-party apps
+   to change Wi-Fi state using WifiManager.setWifiEnabled().
+
+   Therefore:
+   - Android < 10: best-effort state change
+   - Android 10+: rejected
+   - iOS: rejected
+  */
   setWifiState(options: { enable: boolean }): Promise<void>;
 
-  /**
-   * Requests local network authorization (iOS 14+).
-   * On unsupported platforms this may be unavailable.
-   */
+  /*
+   Requests local network authorization (iOS 14+).
+
+   On unsupported platforms this may be unavailable.
+  */
   requestLocalNetworkAuthorization(options?: {
     timeoutMs?: number;
   }): Promise<{ value: number }>;
 
-  /**
-   * Returns local network authorization status.
-   * iOS values:
-   *  1  = granted
-   *  0  = unknown / not requested
-   * -1  = denied
-   * -2  = indeterminate
-   */
+  /*
+   Returns local network authorization status.
+
+   iOS values:
+     1  = granted
+     0  = unknown / not requested
+    -1  = denied
+    -2  = indeterminate
+  */
   getLocalNetworkAuthorizationStatus(options?: {
     timeoutMs?: number;
   }): Promise<{ value: number }>;
@@ -322,192 +353,173 @@ export interface DiagnosticPlugin {
   // External Storage
   // -----------------------
 
-  /**
-   * Returns details for detected removable external SD card paths.
-   *
-   * Cordova parity:
-   * Returns removable external SD card details wrapped in a `details` property.
-   */
+  /*
+   Returns details for detected removable external SD card paths.
+
+   Cordova parity:
+   Returns removable external SD card details wrapped
+   in a 'details' property.
+  */
   getExternalSdCardDetails(): Promise<{ details: ExternalSdCardDetail[] }>;
 
   // -----------------------
   // Microphone
   // -----------------------
 
-  /**
-   * True if the app is currently authorized to use the microphone.
-   *
-   * iOS:
-   * Uses AVAudioSession.recordPermission and returns true only when
-   * the permission state is `granted`.
-   *
-   * Android:
-   * Maps to RECORD_AUDIO runtime permission state.
-   */
+  /*
+   True if the app is currently authorized to use the microphone.
+
+   iOS:
+   Uses AVAudioSession.recordPermission and returns true
+   only when the permission state is 'granted'.
+
+   Android:
+   Maps to RECORD_AUDIO runtime permission state.
+  */
   isMicrophoneAuthorized(): Promise<{ value: boolean }>;
 
-  /**
-   * Returns microphone authorization status using Cordova parity strings.
-   *
-   * Possible values:
-   * - "granted"
-   * - "denied"
-   * - "not_determined"
-   *
-   * iOS:
-   * Derived from AVAudioSession.recordPermission.
-   *
-   * Android:
-   * Derived from RECORD_AUDIO runtime permission state.
-   */
+  /*
+   Returns microphone authorization status
+   using Cordova parity strings.
+
+   Possible values:
+   - "granted"
+   - "denied"
+   - "not_determined"
+
+   iOS:
+   Derived from AVAudioSession.recordPermission.
+
+   Android:
+   Derived from RECORD_AUDIO runtime permission state.
+  */
   getMicrophoneAuthorizationStatus(): Promise<{ value: string }>;
 
-  /**
-   * Requests microphone authorization.
-   *
-   * iOS:
-   * Triggers the AVAudioSession.requestRecordPermission() prompt.
-   *
-   * Android:
-   * Requests RECORD_AUDIO runtime permission.
-   *
-   * Returns true if permission is granted after the request.
-   */
+  /*
+   Requests microphone authorization.
+
+   iOS:
+   Triggers AVAudioSession.requestRecordPermission().
+
+   Android:
+   Requests RECORD_AUDIO runtime permission.
+
+   Returns true if permission is granted.
+  */
   requestMicrophoneAuthorization(): Promise<{ value: boolean }>;
 
   // -----------------------
   // Motion
   // -----------------------
 
-  /**
-   * True if motion/activity tracking is available on the device.
-   */
+  /*
+   True if motion/activity tracking is available on the device.
+  */
   isMotionAvailable(): Promise<{ value: boolean }>;
 
-  /**
-   * True if the device can determine the outcome of a motion permission request.
-   *
-   * iOS:
-   * Best-effort parity with Cordova using CMPedometer event tracking availability.
-   */
+  /*
+   True if the device can determine the outcome
+   of a motion permission request.
+
+   iOS:
+   Best-effort parity with Cordova
+   using CMPedometer availability.
+  */
   isMotionRequestOutcomeAvailable(): Promise<{ value: boolean }>;
 
-  /**
-   * Returns motion authorization status using Cordova parity strings.
-   *
-   * Possible values:
-   * - "granted"
-   * - "denied"
-   * - "not_determined"
-   * - "not_requested"
-   * - "not_available"
-   * - "restricted"
-   * - "unknown"
-   */
+  /*
+   Returns motion authorization status using Cordova parity strings.
+
+   Possible values:
+   - "granted"
+   - "denied"
+   - "not_determined"
+   - "not_requested"
+   - "not_available"
+   - "restricted"
+   - "unknown"
+  */
   getMotionAuthorizationStatus(): Promise<{ value: string }>;
 
-  /**
-   * Requests motion authorization.
-   *
-   * Important Cordova parity behavior:
-   * On iOS this can only be meaningfully requested once after app installation.
-   * Subsequent calls reject if the permission request was already triggered before.
-   */
+  /*
+   Requests motion authorization.
+
+   Cordova parity behavior:
+
+   On iOS this can only be meaningfully requested once
+   after app installation.
+
+   Subsequent calls reject if the permission
+   was already requested before.
+  */
   requestMotionAuthorization(): Promise<{ value: string }>;
 
   // -----------------------
   // Reminders
   // -----------------------
 
-  /**
-   * Returns reminders authorization status using Cordova parity strings.
-   *
-   * Possible values:
-   * - "granted"
-   * - "denied"
-   * - "not_determined"
-   */
+  /*
+   Returns reminders authorization status using Cordova parity strings.
+
+   Possible values:
+   - "granted"
+   - "denied"
+   - "not_determined"
+  */
   getRemindersAuthorizationStatus(): Promise<{ value: string }>;
 
-  /**
-   * True if the app is currently authorized to access reminders.
-   */
+  /*
+   True if the app is currently authorized to access reminders.
+  */
   isRemindersAuthorized(): Promise<{ value: boolean }>;
 
-  /**
-   * Requests reminders authorization.
-   *
-   * Returns true if permission is granted after the request.
-   */
+  /*
+   Requests reminders authorization.
+
+   Returns true if permission is granted after the request.
+  */
   requestRemindersAuthorization(): Promise<{ value: boolean }>;
 
   // -----------------------
   // NFC
   // -----------------------
 
-  /**
-   * Opens the OS-level NFC settings screen.
-   *
-   * Android:
-   * Opens the system NFC settings panel using
-   * Settings.ACTION_NFC_SETTINGS (or wireless settings on older versions).
-   *
-   * iOS:
-   * Not supported — iOS does not expose a direct NFC settings screen.
-   * Calls may be rejected or behave as a no-op depending on implementation.
-   */
+  /*
+   Opens the OS-level NFC settings screen.
+
+   Android:
+   Opens system NFC settings.
+
+   iOS:
+   Not supported.
+  */
   switchToNFCSettings(): Promise<void>;
 
-  /**
-   * True if the device contains NFC hardware.
-   *
-   * Android:
-   * Checks for the presence of an NFC adapter via NfcManager/NfcAdapter.
-   *
-   * iOS:
-   * Returns best-effort parity. Devices that support CoreNFC will return true.
-   */
+  /*
+   True if the device contains NFC hardware.
+  */
   isNFCPresent(): Promise<{ present: boolean }>;
 
-  /**
-   * Returns whether NFC is currently enabled at the OS level.
-   *
-   * Android:
-   * Uses NfcAdapter.isEnabled().
-   *
-   * iOS:
-   * NFC is managed by the system and generally considered enabled when available.
-   */
+  /*
+   Returns whether NFC is currently enabled.
+  */
   isNFCEnabled(): Promise<{ enabled: boolean }>;
 
-  /**
-   * True if NFC is both present and enabled.
-   *
-   * This method combines:
-   * - hardware presence
-   * - adapter enabled state
-   *
-   * Android:
-   * Equivalent to:
-   *   isNFCPresent && isNFCEnabled
-   */
+  /*
+   True if NFC is both present and enabled.
+  */
   isNFCAvailable(): Promise<{ available: boolean }>;
 
-  /**
-   * NFC adapter state change event.
-   *
-   * Fired when the underlying NFC adapter state changes.
-   *
-   * Possible state values (Cordova parity):
-   * - "powered_on"
-   * - "powered_off"
-   * - "powering_on"
-   * - "powering_off"
-   * - "unknown"
-   *
-   * Android:
-   * Triggered from NfcAdapter.ACTION_ADAPTER_STATE_CHANGED broadcasts.
-   */
+  /*
+   NFC adapter state change event.
+
+   Possible states:
+   - powered_on
+   - powered_off
+   - powering_on
+   - powering_off
+   - unknown
+  */
   addListener(
     eventName: 'nfcStateChange',
     listenerFunc: (event: { state: string }) => void
@@ -517,51 +529,50 @@ export interface DiagnosticPlugin {
   // Calendar
   // -----------------------
 
-  /**
-   * Returns calendar authorization status using Cordova parity strings.
-   *
-   * Possible values:
-   * - "granted"
-   * - "denied"
-   * - "not_determined"
-   */
+  /*
+   Returns calendar authorization status using Cordova parity strings.
+
+   Possible values:
+   - granted
+   - denied
+   - not_determined
+  */
   getCalendarAuthorizationStatus(): Promise<{ value: string }>;
 
-  /**
-   * True if the app is currently authorized to access calendar events.
-   */
+  /*
+   True if the app is currently authorized to access calendar events.
+  */
   isCalendarAuthorized(): Promise<{ value: boolean }>;
 
-  /**
-   * Requests calendar authorization.
-   *
-   * Returns true if permission is granted after the request.
-   */
+  /*
+   Requests calendar authorization.
+  */
   requestCalendarAuthorization(): Promise<{ value: boolean }>;
-  
+
   // -----------------------
   // Contacts
   // -----------------------
 
-  /**
-   * Returns address book / contacts authorization status using Cordova parity strings.
-   *
-   * Possible values:
-   * - "granted"
-   * - "denied"
-   * - "not_determined"
-   */
+  /*
+   Returns address book / contacts authorization status
+   using Cordova parity strings.
+
+   Possible values:
+   - granted
+   - denied
+   - not_determined
+  */
   getAddressBookAuthorizationStatus(): Promise<{ value: string }>;
 
-  /**
-   * True if the app is currently authorized to access contacts.
-   */
+  /*
+   True if the app is currently authorized to access contacts.
+  */
   isAddressBookAuthorized(): Promise<{ value: boolean }>;
 
-  /**
-   * Requests contacts authorization.
-   *
-   * Returns true if permission is granted after the request.
-   */
+  /*
+   Requests contacts authorization.
+
+   Returns true if permission is granted after the request.
+  */
   requestAddressBookAuthorization(): Promise<{ value: boolean }>;
 }
