@@ -208,4 +208,16 @@ export class DiagnosticPluginWeb extends WebPlugin implements DiagnosticPlugin {
   }): Promise<{ value: number }> {
     return { value: 0 };
   }
+
+  async isMicrophoneAuthorized(): Promise<{ value: boolean }> {
+  throw this.unavailable('Microphone not available on web');
+  }
+
+  async getMicrophoneAuthorizationStatus(): Promise<{ value: string }> {
+    throw this.unavailable('Microphone not available on web');
+  }
+
+  async requestMicrophoneAuthorization(): Promise<{ value: boolean }> {
+    throw this.unavailable('Microphone not available on web');
+  }
 }

@@ -62,4 +62,10 @@ CAP_PLUGIN(DiagnosticPlugin, "DiagnosticPlugin",
     CAP_PLUGIN_METHOD(isWifiEnabled, CAPPluginReturnPromise);
     CAP_PLUGIN_METHOD(requestLocalNetworkAuthorization, CAPPluginReturnPromise);
     CAP_PLUGIN_METHOD(getLocalNetworkAuthorizationStatus, CAPPluginReturnPromise);
+    // -----------------------
+    // Microphone
+    // -----------------------
+    CAP_PLUGIN_METHOD(isMicrophoneAuthorized, CAPPluginReturnPromise);
+    CAP_PLUGIN_METHOD(getMicrophoneAuthorizationStatus, CAPPluginReturnPromise);
+    CAP_PLUGIN_METHOD(requestMicrophoneAuthorization, CAPPluginReturnPromise);
 )

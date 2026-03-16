@@ -309,4 +309,49 @@ export interface DiagnosticPlugin {
   getLocalNetworkAuthorizationStatus(options?: {
     timeoutMs?: number;
   }): Promise<{ value: number }>;
+
+  // -----------------------
+  // Microphone
+  // -----------------------
+
+  /**
+   * True if the app is currently authorized to use the microphone.
+   *
+   * iOS:
+   * Uses AVAudioSession.recordPermission and returns true only when
+   * the permission state is `granted`.
+   *
+   * Android:
+   * Maps to RECORD_AUDIO runtime permission state.
+   */
+  isMicrophoneAuthorized(): Promise<{ value: boolean }>;
+
+  /**
+   * Returns microphone authorization status using Cordova parity strings.
+   *
+   * Possible values:
+   * - "granted"
+   * - "denied"
+   * - "not_determined"
+   *
+   * iOS:
+   * Derived from AVAudioSession.recordPermission.
+   *
+   * Android:
+   * Derived from RECORD_AUDIO runtime permission state.
+   */
+  getMicrophoneAuthorizationStatus(): Promise<{ value: string }>;
+
+  /**
+   * Requests microphone authorization.
+   *
+   * iOS:
+   * Triggers the AVAudioSession.requestRecordPermission() prompt.
+   *
+   * Android:
+   * Requests RECORD_AUDIO runtime permission.
+   *
+   * Returns true if permission is granted after the request.
+   */
+  requestMicrophoneAuthorization(): Promise<{ value: boolean }>;
 }

@@ -9,6 +9,7 @@ public class DiagnosticPlugin: CAPPlugin {
     private lazy var camera = CameraModule(plugin: self)
     private lazy var notifications = NotificationsModule(plugin: self)
     private lazy var wifi = WifiModule(plugin: self)
+    private lazy var microphone = MicrophoneModule(plugin: self)
 
     // -----------------------
     // Location
@@ -89,4 +90,13 @@ public class DiagnosticPlugin: CAPPlugin {
     @objc func isWifiEnabled(_ call: CAPPluginCall) { wifi.isWifiEnabled(call) }
     @objc func requestLocalNetworkAuthorization(_ call: CAPPluginCall) { wifi.requestLocalNetworkAuthorization(call) }
     @objc func getLocalNetworkAuthorizationStatus(_ call: CAPPluginCall) { wifi.getLocalNetworkAuthorizationStatus(call) }
+
+    // -----------------------
+    // Microphone
+    // -----------------------
+
+
+    @objc func isMicrophoneAuthorized(_ call: CAPPluginCall) {microphone.isMicrophoneAuthorized(call)}
+    @objc func getMicrophoneAuthorizationStatus(_ call: CAPPluginCall) {microphone.getMicrophoneAuthorizationStatus(call)}
+    @objc func requestMicrophoneAuthorization(_ call: CAPPluginCall) {microphone.requestMicrophoneAuthorization(call)}
 }

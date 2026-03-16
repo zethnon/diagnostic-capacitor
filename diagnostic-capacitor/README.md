@@ -52,6 +52,12 @@ npx cap sync
 * [`getRemoteNotificationsAuthorizationStatus()`](#getremotenotificationsauthorizationstatus)
 * [`requestRemoteNotificationsAuthorization(...)`](#requestremotenotificationsauthorization)
 * [`switchToNotificationSettings()`](#switchtonotificationsettings)
+* [`switchToWifiSettings()`](#switchtowifisettings)
+* [`isWifiAvailable()`](#iswifiavailable)
+* [`isWifiEnabled()`](#iswifienabled)
+* [`setWifiState(...)`](#setwifistate)
+* [`requestLocalNetworkAuthorization(...)`](#requestlocalnetworkauthorization)
+* [`getLocalNetworkAuthorizationStatus(...)`](#getlocalnetworkauthorizationstatus)
 * [Interfaces](#interfaces)
 * [Type Aliases](#type-aliases)
 
@@ -599,6 +605,116 @@ switchToNotificationSettings() => Promise<void>
 ```
 
 Opens the app notification settings screen.
+
+--------------------
+
+
+### switchToWifiSettings()
+
+```typescript
+switchToWifiSettings() => Promise<void>
+```
+
+Opens the OS Wi-Fi settings screen.
+
+--------------------
+
+
+### isWifiAvailable()
+
+```typescript
+isWifiAvailable() => Promise<{ available: boolean; }>
+```
+
+Cordova-parity check for Wi-Fi availability.
+On Android this maps to WifiManager.isWifiEnabled().
+
+Note:
+This does not guarantee the device is connected to a Wi-Fi network.
+It only reflects whether Wi-Fi is enabled at OS level.
+
+**Returns:** <code>Promise&lt;{ available: boolean; }&gt;</code>
+
+--------------------
+
+
+### isWifiEnabled()
+
+```typescript
+isWifiEnabled() => Promise<{ enabled: boolean; }>
+```
+
+Returns whether Wi-Fi is enabled.
+
+On Android this is effectively the same underlying check as isWifiAvailable().
+We expose it separately because iOS has a distinct method and the Capacitor API
+should remain explicit.
+
+**Returns:** <code>Promise&lt;{ enabled: boolean; }&gt;</code>
+
+--------------------
+
+
+### setWifiState(...)
+
+```typescript
+setWifiState(options: { enable: boolean; }) => Promise<void>
+```
+
+Attempts to enable/disable Wi-Fi.
+
+Important platform limitation:
+Android 10+ no longer allows normal third-party apps to change Wi-Fi state
+using the old WifiManager.setWifiEnabled() API.
+
+Therefore:
+- Android &lt; 10: best-effort state change
+- Android 10+: rejected
+- iOS: rejected
+
+| Param         | Type                              |
+| ------------- | --------------------------------- |
+| **`options`** | <code>{ enable: boolean; }</code> |
+
+--------------------
+
+
+### requestLocalNetworkAuthorization(...)
+
+```typescript
+requestLocalNetworkAuthorization(options?: { timeoutMs?: number | undefined; } | undefined) => Promise<{ value: number; }>
+```
+
+Requests local network authorization (iOS 14+).
+On unsupported platforms this may be unavailable.
+
+| Param         | Type                                 |
+| ------------- | ------------------------------------ |
+| **`options`** | <code>{ timeoutMs?: number; }</code> |
+
+**Returns:** <code>Promise&lt;{ value: number; }&gt;</code>
+
+--------------------
+
+
+### getLocalNetworkAuthorizationStatus(...)
+
+```typescript
+getLocalNetworkAuthorizationStatus(options?: { timeoutMs?: number | undefined; } | undefined) => Promise<{ value: number; }>
+```
+
+Returns local network authorization status.
+iOS values:
+ 1  = granted
+ 0  = unknown / not requested
+-1  = denied
+-2  = indeterminate
+
+| Param         | Type                                 |
+| ------------- | ------------------------------------ |
+| **`options`** | <code>{ timeoutMs?: number; }</code> |
+
+**Returns:** <code>Promise&lt;{ value: number; }&gt;</code>
 
 --------------------
 
