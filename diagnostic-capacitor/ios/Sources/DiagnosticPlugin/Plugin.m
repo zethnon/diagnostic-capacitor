@@ -87,4 +87,10 @@ CAP_PLUGIN(DiagnosticPlugin, "DiagnosticPlugin",
     CAP_PLUGIN_METHOD(getCalendarAuthorizationStatus, CAPPluginReturnPromise);
     CAP_PLUGIN_METHOD(isCalendarAuthorized, CAPPluginReturnPromise);
     CAP_PLUGIN_METHOD(requestCalendarAuthorization, CAPPluginReturnPromise);
+    // -----------------------
+    // Contacts
+    // -----------------------
+    CAP_PLUGIN_METHOD(getAddressBookAuthorizationStatus, CAPPluginReturnPromise);
+    CAP_PLUGIN_METHOD(isAddressBookAuthorized, CAPPluginReturnPromise);
+    CAP_PLUGIN_METHOD(requestAddressBookAuthorization, CAPPluginReturnPromise);
 )

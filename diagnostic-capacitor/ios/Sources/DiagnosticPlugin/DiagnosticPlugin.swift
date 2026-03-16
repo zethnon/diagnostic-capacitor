@@ -13,6 +13,7 @@ public class DiagnosticPlugin: CAPPlugin {
     private lazy var motion = MotionModule(plugin: self)
     private lazy var reminders = RemindersModule(plugin: self)
     private lazy var calendar = CalendarModule()
+    private lazy var contacts = ContactsModule()
 
     // -----------------------
     // Location
@@ -110,9 +111,16 @@ public class DiagnosticPlugin: CAPPlugin {
     // -----------------------
     // Calendar
     // -----------------------
-
     
     @objc func getCalendarAuthorizationStatus(_ call: CAPPluginCall) { calendar.getCalendarAuthorizationStatus(call) }
     @objc func isCalendarAuthorized(_ call: CAPPluginCall) { calendar.isCalendarAuthorized(call) }
     @objc func requestCalendarAuthorization(_ call: CAPPluginCall) { calendar.requestCalendarAuthorization(call) }
+
+    // -----------------------
+    // Contacts
+    // -----------------------
+
+    @objc func getAddressBookAuthorizationStatus(_ call: CAPPluginCall) { contacts.getAddressBookAuthorizationStatus(call) }
+    @objc func isAddressBookAuthorized(_ call: CAPPluginCall) { contacts.isAddressBookAuthorized(call) }
+    @objc func requestAddressBookAuthorization(_ call: CAPPluginCall) { contacts.requestAddressBookAuthorization(call) }
 }

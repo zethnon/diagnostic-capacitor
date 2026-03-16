@@ -326,7 +326,7 @@ export interface DiagnosticPlugin {
    * Returns details for detected removable external SD card paths.
    *
    * Cordova parity:
-   * returns the array directly, not wrapped in an object.
+   * Returns removable external SD card details wrapped in a `details` property.
    */
   getExternalSdCardDetails(): Promise<{ details: ExternalSdCardDetail[] }>;
 
@@ -538,4 +538,30 @@ export interface DiagnosticPlugin {
    * Returns true if permission is granted after the request.
    */
   requestCalendarAuthorization(): Promise<{ value: boolean }>;
+  
+  // -----------------------
+  // Contacts
+  // -----------------------
+
+  /**
+   * Returns address book / contacts authorization status using Cordova parity strings.
+   *
+   * Possible values:
+   * - "granted"
+   * - "denied"
+   * - "not_determined"
+   */
+  getAddressBookAuthorizationStatus(): Promise<{ value: string }>;
+
+  /**
+   * True if the app is currently authorized to access contacts.
+   */
+  isAddressBookAuthorized(): Promise<{ value: boolean }>;
+
+  /**
+   * Requests contacts authorization.
+   *
+   * Returns true if permission is granted after the request.
+   */
+  requestAddressBookAuthorization(): Promise<{ value: boolean }>;
 }

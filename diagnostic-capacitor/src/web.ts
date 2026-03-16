@@ -281,4 +281,15 @@ export class DiagnosticPluginWeb extends WebPlugin implements DiagnosticPlugin {
     throw this.unavailable('Calendar authorization is not available on web.');
   }
 
+  async getAddressBookAuthorizationStatus(): Promise<{ value: string }> {
+    return { value: 'not_determined' };
+  }
+
+  async isAddressBookAuthorized(): Promise<{ value: boolean }> {
+    return { value: false };
+  }
+
+  async requestAddressBookAuthorization(): Promise<{ value: boolean }> {
+    throw this.unavailable('Contacts authorization is not available on web.');
+  }
 }
