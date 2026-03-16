@@ -11,6 +11,7 @@ public class DiagnosticPlugin: CAPPlugin {
     private lazy var wifi = WifiModule(plugin: self)
     private lazy var microphone = MicrophoneModule(plugin: self)
     private lazy var motion = MotionModule(plugin: self)
+    private lazy var reminders = RemindersModule(plugin: self)
 
     // -----------------------
     // Location
@@ -96,5 +97,13 @@ public class DiagnosticPlugin: CAPPlugin {
     @objc func isMotionRequestOutcomeAvailable(_ call: CAPPluginCall) {motion.isMotionRequestOutcomeAvailable(call)}
     @objc func getMotionAuthorizationStatus(_ call: CAPPluginCall) {motion.getMotionAuthorizationStatus(call)}
     @objc func requestMotionAuthorization(_ call: CAPPluginCall) {motion.requestMotionAuthorization(call)}
+
+    // -----------------------
+    // Reminders
+    // -----------------------
+
+    @objc func getRemindersAuthorizationStatus(_ call: CAPPluginCall) {reminders.getRemindersAuthorizationStatus(call)}
+    @objc func isRemindersAuthorized(_ call: CAPPluginCall) {reminders.isRemindersAuthorized(call)}
+    @objc func requestRemindersAuthorization(_ call: CAPPluginCall) {reminders.requestRemindersAuthorization(call)}
 
 }

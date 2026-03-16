@@ -394,4 +394,31 @@ export interface DiagnosticPlugin {
    * Subsequent calls reject if the permission request was already triggered before.
    */
   requestMotionAuthorization(): Promise<{ value: string }>;
+
+
+  // -----------------------
+  // Reminders
+  // -----------------------
+
+  /**
+   * Returns reminders authorization status using Cordova parity strings.
+   *
+   * Possible values:
+   * - "granted"
+   * - "denied"
+   * - "not_determined"
+   */
+  getRemindersAuthorizationStatus(): Promise<{ value: string }>;
+
+  /**
+   * True if the app is currently authorized to access reminders.
+   */
+  isRemindersAuthorized(): Promise<{ value: boolean }>;
+
+  /**
+   * Requests reminders authorization.
+   *
+   * Returns true if permission is granted after the request.
+   */
+  requestRemindersAuthorization(): Promise<{ value: boolean }>;
 }

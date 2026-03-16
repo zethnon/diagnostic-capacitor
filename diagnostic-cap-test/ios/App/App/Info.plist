@@ -70,5 +70,7 @@
 	<string>This app requires access to your photo library.</string>
 	<key>NSMotionUsageDescription</key>
 	<string>App requires motion access.</string>
+	<key>NSRemindersUsageDescription</key>
+	<string>App requires reminders access.</string>
 </dict>
 </plist>

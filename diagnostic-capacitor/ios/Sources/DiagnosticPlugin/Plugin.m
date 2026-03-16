@@ -75,4 +75,10 @@ CAP_PLUGIN(DiagnosticPlugin, "DiagnosticPlugin",
     CAP_PLUGIN_METHOD(isMotionRequestOutcomeAvailable, CAPPluginReturnPromise);
     CAP_PLUGIN_METHOD(getMotionAuthorizationStatus, CAPPluginReturnPromise);
     CAP_PLUGIN_METHOD(requestMotionAuthorization, CAPPluginReturnPromise);
+    // -----------------------
+    // Reminders
+    // -----------------------
+    CAP_PLUGIN_METHOD(getRemindersAuthorizationStatus, CAPPluginReturnPromise);
+    CAP_PLUGIN_METHOD(isRemindersAuthorized, CAPPluginReturnPromise);
+    CAP_PLUGIN_METHOD(requestRemindersAuthorization, CAPPluginReturnPromise);
 )

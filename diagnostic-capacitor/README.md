@@ -65,6 +65,9 @@ npx cap sync
 * [`isMotionRequestOutcomeAvailable()`](#ismotionrequestoutcomeavailable)
 * [`getMotionAuthorizationStatus()`](#getmotionauthorizationstatus)
 * [`requestMotionAuthorization()`](#requestmotionauthorization)
+* [`getRemindersAuthorizationStatus()`](#getremindersauthorizationstatus)
+* [`isRemindersAuthorized()`](#isremindersauthorized)
+* [`requestRemindersAuthorization()`](#requestremindersauthorization)
 * [Interfaces](#interfaces)
 * [Type Aliases](#type-aliases)
 
@@ -855,6 +858,52 @@ On iOS this can only be meaningfully requested once after app installation.
 Subsequent calls reject if the permission request was already triggered before.
 
 **Returns:** <code>Promise&lt;{ value: string; }&gt;</code>
+
+--------------------
+
+
+### getRemindersAuthorizationStatus()
+
+```typescript
+getRemindersAuthorizationStatus() => Promise<{ value: string; }>
+```
+
+Returns reminders authorization status using Cordova parity strings.
+
+Possible values:
+- "granted"
+- "denied"
+- "not_determined"
+
+**Returns:** <code>Promise&lt;{ value: string; }&gt;</code>
+
+--------------------
+
+
+### isRemindersAuthorized()
+
+```typescript
+isRemindersAuthorized() => Promise<{ value: boolean; }>
+```
+
+True if the app is currently authorized to access reminders.
+
+**Returns:** <code>Promise&lt;{ value: boolean; }&gt;</code>
+
+--------------------
+
+
+### requestRemindersAuthorization()
+
+```typescript
+requestRemindersAuthorization() => Promise<{ value: boolean; }>
+```
+
+Requests reminders authorization.
+
+Returns true if permission is granted after the request.
+
+**Returns:** <code>Promise&lt;{ value: boolean; }&gt;</code>
 
 --------------------
 

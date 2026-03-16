@@ -236,4 +236,16 @@ export class DiagnosticPluginWeb extends WebPlugin implements DiagnosticPlugin {
   async requestMotionAuthorization(): Promise<{ value: string }> {
     throw this.unavailable('Motion not available on web');
   }
+
+  async getRemindersAuthorizationStatus(): Promise<{ value: string }> {
+    throw this.unavailable('Reminders not available on web');
+  }
+
+  async isRemindersAuthorized(): Promise<{ value: boolean }> {
+    throw this.unavailable('Reminders not available on web');
+  }
+
+  async requestRemindersAuthorization(): Promise<{ value: boolean }> {
+    throw this.unavailable('Reminders not available on web');
+  }
 }
