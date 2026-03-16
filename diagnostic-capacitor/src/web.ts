@@ -268,4 +268,17 @@ export class DiagnosticPluginWeb extends WebPlugin implements DiagnosticPlugin {
   async isNFCAvailable(): Promise<{ available: boolean }> {
     return { available: false };
   }
+
+ async getCalendarAuthorizationStatus(): Promise<{ value: string }> {
+    return { value: 'not_determined' };
+  }
+
+  async isCalendarAuthorized(): Promise<{ value: boolean }> {
+    return { value: false };
+  }
+
+  async requestCalendarAuthorization(): Promise<{ value: boolean }> {
+    throw this.unavailable('Calendar authorization is not available on web.');
+  }
+
 }

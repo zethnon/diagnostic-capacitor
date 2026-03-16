@@ -72,5 +72,7 @@
 	<string>App requires motion access.</string>
 	<key>NSRemindersUsageDescription</key>
 	<string>App requires reminders access.</string>
+	<key>NSCalendarsUsageDescription</key>
+	<string>This app requires access to calendar events.</string>
 </dict>
 </plist>

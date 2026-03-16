@@ -12,6 +12,7 @@ public class DiagnosticPlugin: CAPPlugin {
     private lazy var microphone = MicrophoneModule(plugin: self)
     private lazy var motion = MotionModule(plugin: self)
     private lazy var reminders = RemindersModule(plugin: self)
+    private lazy var calendar = CalendarModule()
 
     // -----------------------
     // Location
@@ -106,4 +107,12 @@ public class DiagnosticPlugin: CAPPlugin {
     @objc func isRemindersAuthorized(_ call: CAPPluginCall) {reminders.isRemindersAuthorized(call)}
     @objc func requestRemindersAuthorization(_ call: CAPPluginCall) {reminders.requestRemindersAuthorization(call)}
 
+    // -----------------------
+    // Calendar
+    // -----------------------
+
+    
+    @objc func getCalendarAuthorizationStatus(_ call: CAPPluginCall) { calendar.getCalendarAuthorizationStatus(call) }
+    @objc func isCalendarAuthorized(_ call: CAPPluginCall) { calendar.isCalendarAuthorized(call) }
+    @objc func requestCalendarAuthorization(_ call: CAPPluginCall) { calendar.requestCalendarAuthorization(call) }
 }

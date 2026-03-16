@@ -74,6 +74,9 @@ npx cap sync
 * [`isNFCEnabled()`](#isnfcenabled)
 * [`isNFCAvailable()`](#isnfcavailable)
 * [`addListener('nfcStateChange', ...)`](#addlistenernfcstatechange-)
+* [`getCalendarAuthorizationStatus()`](#getcalendarauthorizationstatus)
+* [`isCalendarAuthorized()`](#iscalendarauthorized)
+* [`requestCalendarAuthorization()`](#requestcalendarauthorization)
 * [Interfaces](#interfaces)
 * [Type Aliases](#type-aliases)
 
@@ -1034,6 +1037,52 @@ Triggered from NfcAdapter.ACTION_ADAPTER_STATE_CHANGED broadcasts.
 | **`listenerFunc`** | <code>(event: { state: string; }) =&gt; void</code> |
 
 **Returns:** <code>Promise&lt;<a href="#pluginlistenerhandle">PluginListenerHandle</a>&gt;</code>
+
+--------------------
+
+
+### getCalendarAuthorizationStatus()
+
+```typescript
+getCalendarAuthorizationStatus() => Promise<{ value: string; }>
+```
+
+Returns calendar authorization status using Cordova parity strings.
+
+Possible values:
+- "granted"
+- "denied"
+- "not_determined"
+
+**Returns:** <code>Promise&lt;{ value: string; }&gt;</code>
+
+--------------------
+
+
+### isCalendarAuthorized()
+
+```typescript
+isCalendarAuthorized() => Promise<{ value: boolean; }>
+```
+
+True if the app is currently authorized to access calendar events.
+
+**Returns:** <code>Promise&lt;{ value: boolean; }&gt;</code>
+
+--------------------
+
+
+### requestCalendarAuthorization()
+
+```typescript
+requestCalendarAuthorization() => Promise<{ value: boolean; }>
+```
+
+Requests calendar authorization.
+
+Returns true if permission is granted after the request.
+
+**Returns:** <code>Promise&lt;{ value: boolean; }&gt;</code>
 
 --------------------
 

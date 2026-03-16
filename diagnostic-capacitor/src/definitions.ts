@@ -512,4 +512,30 @@ export interface DiagnosticPlugin {
     eventName: 'nfcStateChange',
     listenerFunc: (event: { state: string }) => void
   ): Promise<PluginListenerHandle>;
+
+  // -----------------------
+  // Calendar
+  // -----------------------
+
+  /**
+   * Returns calendar authorization status using Cordova parity strings.
+   *
+   * Possible values:
+   * - "granted"
+   * - "denied"
+   * - "not_determined"
+   */
+  getCalendarAuthorizationStatus(): Promise<{ value: string }>;
+
+  /**
+   * True if the app is currently authorized to access calendar events.
+   */
+  isCalendarAuthorized(): Promise<{ value: boolean }>;
+
+  /**
+   * Requests calendar authorization.
+   *
+   * Returns true if permission is granted after the request.
+   */
+  requestCalendarAuthorization(): Promise<{ value: boolean }>;
 }
