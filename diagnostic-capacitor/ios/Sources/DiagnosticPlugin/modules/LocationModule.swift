@@ -29,21 +29,21 @@ final class LocationModule: NSObject, CLLocationManagerDelegate {
     private func auth_status_string(_ auth_status: CLAuthorizationStatus) -> String {
         switch auth_status {
         case .denied, .restricted:
-            return "DENIED"
+            return "denied"
         case .notDetermined:
-            return "NOT_DETERMINED"
+            return "not_determined"
         case .authorizedAlways:
-            return "GRANTED"
+            return "granted"
         case .authorizedWhenInUse:
             return "authorized_when_in_use"
         @unknown default:
-            return "NOT_DETERMINED"
+            return "not_determined"
         }
     }
 
     private func is_location_authorized_internal() -> Bool {
         let status = auth_status_string(get_authorization_status())
-        return status == "GRANTED" || status == "authorized_when_in_use"
+        return status == "granted" || status == "authorized_when_in_use"
     }
 
     private func open_app_settings() {
@@ -86,9 +86,9 @@ final class LocationModule: NSObject, CLLocationManagerDelegate {
         
         // in cordova, requestlocationauthorization only returns a status when it changes, oteriwse it keeps callback
         // but in case the status is already set and the user doesnt change it the promise will hang, this is why right after we set
-        //the call , if the stauts is not alredy  NOT_DETERMINED, we resolve with the current status
+        //the call , if the stauts is not alredy  not_determined, we resolve with the current status
         let current = auth_status_string(get_authorization_status())
-        if current != "NOT_DETERMINED" {
+        if current != "not_determined" {
             pending_location_auth_call = nil
             call.resolve(["status": current])
             return

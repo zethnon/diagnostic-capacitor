@@ -6,10 +6,10 @@ import UIKit
 
 final class CameraModule {
 
-    private let authorizationDenied = "DENIED"
-    private let authorizationGranted = "GRANTED"
-    private let authorizationNotRequested = "NOT_REQUESTED"
-    private let authorizationLimited = "LIMITED"
+    private let authorizationDenied = "denied"
+    private let authorizationGranted = "granted"
+    private let authorizationNotRequested = "not_requested"
+    private let authorizationLimited = "limited"
     private let unknown = "UNKNOWN"
 
     private let photoLibraryAccessLevelAddOnly = "add_only"
@@ -174,8 +174,8 @@ final class CameraModule {
     }
 
     private func combinePermissionStatuses(_ statuses: [String]) -> String {
-        if statuses.contains("DENIED_ALWAYS") {
-            return "DENIED_ALWAYS"
+        if statuses.contains("denied_always") {
+            return "denied_always"
         } else if statuses.contains(authorizationLimited) {
             return authorizationLimited
         } else if statuses.contains(authorizationDenied) {

@@ -282,6 +282,8 @@ public class DiagnosticPlugin extends Plugin implements BluetoothModule.Bluetoot
         bluetooth.onBluetoothPermissionResult(call);
     }
 
+
+    //this does not have the @PluginMethod bc it's a internal bridge method
     public void requestBluetoothPermissions(PluginCall call) {
         requestPermissionForAlias("bluetooth", call, "onBluetoothPermissionResult");
     }

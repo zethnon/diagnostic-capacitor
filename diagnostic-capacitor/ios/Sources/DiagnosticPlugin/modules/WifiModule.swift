@@ -145,13 +145,13 @@ import Network
 
     @objc public func isWifiAvailable(_ call: CAPPluginCall) {
         DispatchQueue.global(qos: .background).async {
-            self.resolve_bool(call, self.connected_to_wifi())
+            call.resolve(["available": self.connected_to_wifi()])
         }
     }
 
     @objc public func isWifiEnabled(_ call: CAPPluginCall) {
         DispatchQueue.global(qos: .background).async {
-            self.resolve_bool(call, self.is_wifi_enabled())
+            call.resolve(["enabled": self.is_wifi_enabled()])
         }
     }
 

@@ -153,7 +153,7 @@ class BluetoothModule: NSObject, CBCentralManagerDelegate {
         return state != "unsupported"
     }
 
-    private func getBluetoothStateValue() -> String {
+   private func getBluetoothStateValue() -> String {
         ensureBluetoothManagerValue()
 
         guard let manager = bluetoothManager else {
@@ -161,16 +161,22 @@ class BluetoothModule: NSObject, CBCentralManagerDelegate {
         }
 
         switch manager.state {
-        case .poweredOff:
-            return BLUETOOTH_STATE_POWERED_OFF
-        case .poweredOn:
-            return BLUETOOTH_STATE_POWERED_ON
-        case .resetting, .unauthorized, .unsupported, .unknown:
-            return BLUETOOTH_STATE_UNKNOWN
-        @unknown default:
-            return BLUETOOTH_STATE_UNKNOWN
+            case .poweredOff:
+                return BLUETOOTH_STATE_POWERED_OFF
+            case .poweredOn:
+                return BLUETOOTH_STATE_POWERED_ON
+            case .resetting:    
+                return "resetting"
+            case .unauthorized: 
+                return "unauthorized"
+            case .unsupported:  
+                return "unsupported"
+            case .unknown:      
+                return BLUETOOTH_STATE_UNKNOWN
+            @unknown default:
+                return BLUETOOTH_STATE_UNKNOWN
         }
-    }
+    } 
 
     private func getBluetoothAuthorizationStatusValue() -> String {
         if #available(iOS 13.0, *) {

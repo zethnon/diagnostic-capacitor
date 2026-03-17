@@ -24,10 +24,10 @@ import EventKit
     @objc public func isCalendarAuthorized(_ call: CAPPluginCall) {
         DispatchQueue.global(qos: .userInitiated).async {
             let auth_status = EKEventStore.authorizationStatus(for: .event)
-
-            call.resolve([
-                "value": auth_status == .authorized
-            ])
+            
+            // on iOS 17+, the status .fullAccess is introduced, so we gotta also account for that
+            let authorized = (auth_status == .authorized || auth_status == .fullAccess)
+                call.resolve(["value": authorized])
         }
     }
 
