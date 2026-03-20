@@ -1,30 +1,38 @@
 // swift-tools-version: 5.9
 import PackageDescription
-// DO NOT MODIFY THIS FILE - managed by Capacitor CLI commands
+
 let package = Package(
-    name: "CapApp-SPM",
+    name: "NoesisDiagnosticCapacitor",
     platforms: [.iOS(.v15)],
     products: [
         .library(
-            name: "CapApp-SPM",
-            targets: ["CapApp-SPM"])
+            name: "NoesisDiagnosticCapacitor",
+            targets: ["DiagnosticPlugin"])
     ],
     dependencies: [
-        .package(url: "https://github.com/ionic-team/capacitor-swift-pm.git", exact: "8.1.0"),
-        .package(name: "CapacitorCamera", path: "../../../node_modules/@capacitor/camera"),
-        .package(name: "CapacitorSplashScreen", path: "../../../node_modules/@capacitor/splash-screen"),
-        .package(name: "NoesisDiagnosticCapacitor", path: "../../../../diagnostic-capacitor")
+        .package(url: "https://github.com/ionic-team/capacitor-swift-pm.git", from: "8.0.0")
     ],
     targets: [
         .target(
-            name: "CapApp-SPM",
+            name: "DiagnosticPluginObjC",
+            dependencies: [
+                .product(name: "Capacitor", package: "capacitor-swift-pm")
+            ],
+            path: "ios/Sources/DiagnosticPluginObjC",
+            publicHeadersPath: "."
+        ),
+        .target(
+            name: "DiagnosticPlugin",
             dependencies: [
                 .product(name: "Capacitor", package: "capacitor-swift-pm"),
                 .product(name: "Cordova", package: "capacitor-swift-pm"),
-                .product(name: "CapacitorCamera", package: "CapacitorCamera"),
-                .product(name: "CapacitorSplashScreen", package: "CapacitorSplashScreen"),
-                .product(name: "NoesisDiagnosticCapacitor", package: "NoesisDiagnosticCapacitor")
-            ]
-        )
+                "DiagnosticPluginObjC"
+            ],
+            path: "ios/Sources/DiagnosticPlugin"
+        ),
+        .testTarget(
+            name: "DiagnosticPluginTests",
+            dependencies: ["DiagnosticPlugin"],
+            path: "ios/Tests/DiagnosticPluginTests")
     ]
 )

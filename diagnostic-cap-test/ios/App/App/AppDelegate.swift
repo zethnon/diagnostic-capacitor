@@ -1,5 +1,6 @@
 import UIKit
 import Capacitor
+import DiagnosticPlugin
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
