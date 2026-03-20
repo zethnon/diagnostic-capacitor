@@ -14,10 +14,19 @@ let package = Package(
     ],
     targets: [
         .target(
+            name: "DiagnosticPluginObjC",
+            dependencies: [
+                .product(name: "Capacitor", package: "capacitor-swift-pm")
+            ],
+            path: "ios/Sources/DiagnosticPluginObjC",
+            publicHeadersPath: "."
+        ),
+        .target(
             name: "DiagnosticPlugin",
             dependencies: [
                 .product(name: "Capacitor", package: "capacitor-swift-pm"),
-                .product(name: "Cordova", package: "capacitor-swift-pm")
+                .product(name: "Cordova", package: "capacitor-swift-pm"),
+                "DiagnosticPluginObjC"
             ],
             path: "ios/Sources/DiagnosticPlugin"
         ),
