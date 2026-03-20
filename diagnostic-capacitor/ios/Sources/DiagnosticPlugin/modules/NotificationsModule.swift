@@ -148,7 +148,7 @@ import UIKit
         DispatchQueue.main.async {
             let application = UIApplication.shared
 
-            if #available(iOS 15.4, *) {
+            if #available(iOS 16.0, *) {
                 guard let url = URL(string: UIApplication.openNotificationSettingsURLString) else {
                     call.reject("Failed to build notification settings URL")
                     return
