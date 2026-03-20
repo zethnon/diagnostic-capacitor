@@ -6,7 +6,7 @@ const DiagnosticPlugin = registerPlugin('DiagnosticPlugin');
 
 // =============================================================
 // LOGGING HELPERS
-// All logs use [DIAG] prefix for easy filtering in Xcode console
+// All logs use [DIAG] prefix for easy filtering in logcat
 // Filter by: [DIAG] to see only test output
 // =============================================================
 
@@ -42,7 +42,7 @@ async function safeCall(module, method, fn) {
 }
 
 // =============================================================
-// SMOKE MARKER — visible top-left corner of the app UI
+// SMOKE MARKER — visible top of the app UI
 // =============================================================
 
 function setMarker(text) {
@@ -59,7 +59,7 @@ function setMarker(text) {
 }
 
 // =============================================================
-// TEST SUITES
+// SHARED MODULES (iOS + Android)
 // =============================================================
 
 async function testLocation() {
@@ -142,8 +142,9 @@ async function testWifi() {
   await safeCall('Wifi', 'isWifiAvailable', () => DiagnosticPlugin.isWifiAvailable());
   await safeCall('Wifi', 'isWifiEnabled', () => DiagnosticPlugin.isWifiEnabled());
   await safeCall('Wifi', 'getLocalNetworkAuthorizationStatus', () => DiagnosticPlugin.getLocalNetworkAuthorizationStatus({ timeoutMs: 3000 }));
-  // Triggers permission dialog — runs last
-  await safeCall('Wifi', 'requestLocalNetworkAuthorization', () => DiagnosticPlugin.requestLocalNetworkAuthorization({ timeoutMs: 5000 }));
+  // Android-only: setWifiState (rejected on Android 10+, expected)
+  await safeCall('Wifi', 'setWifiState(false)', () => DiagnosticPlugin.setWifiState({ enable: false }));
+  await safeCall('Wifi', 'setWifiState(true)', () => DiagnosticPlugin.setWifiState({ enable: true }));
   logDone('Wifi');
 }
 
@@ -156,12 +157,63 @@ async function testMicrophone() {
   logDone('Microphone');
 }
 
+// =============================================================
+// ANDROID-ONLY MODULES
+// =============================================================
+
+async function testNFC() {
+  logStart('NFC');
+
+  let nfcListener = null;
+  try {
+    nfcListener = await DiagnosticPlugin.addListener('nfcStateChange', event => {
+      log('NFC', 'EVENT:nfcStateChange', event);
+    });
+  } catch (e) {
+    logError('NFC', 'addListener(nfcStateChange)', e);
+  }
+
+  await safeCall('NFC', 'isNFCPresent', () => DiagnosticPlugin.isNFCPresent());
+  await safeCall('NFC', 'isNFCEnabled', () => DiagnosticPlugin.isNFCEnabled());
+  await safeCall('NFC', 'isNFCAvailable', () => DiagnosticPlugin.isNFCAvailable());
+
+  if (nfcListener) {
+    try { await nfcListener.remove(); } catch (e) { logError('NFC', 'removeListener', e); }
+  }
+
+  logDone('NFC');
+}
+
+async function testExternalStorage() {
+  logStart('ExternalStorage');
+
+  const result = await safeCall('ExternalStorage', 'getExternalSdCardDetails', () =>
+    DiagnosticPlugin.getExternalSdCardDetails()
+  );
+
+  const details = result?.details ?? [];
+  if (Array.isArray(details)) {
+    logInfo(`ExternalStorage details_count=${details.length}`);
+    details.forEach((detail, index) => {
+      log('ExternalStorage', `detail[${index}]`, detail);
+    });
+  } else {
+    logError('ExternalStorage', 'details shape', new Error('Expected result.details to be an array'));
+  }
+
+  logDone('ExternalStorage');
+}
+
+// =============================================================
+// iOS-ONLY MODULES — commented out, do not run on Android
+// =============================================================
+
+/*
 async function testMotion() {
   logStart('Motion');
   await safeCall('Motion', 'isMotionAvailable', () => DiagnosticPlugin.isMotionAvailable());
   await safeCall('Motion', 'isMotionRequestOutcomeAvailable', () => DiagnosticPlugin.isMotionRequestOutcomeAvailable());
   await safeCall('Motion', 'getMotionAuthorizationStatus', () => DiagnosticPlugin.getMotionAuthorizationStatus());
-  // Triggers permission dialog — runs last
   await safeCall('Motion', 'requestMotionAuthorization', () => DiagnosticPlugin.requestMotionAuthorization());
   logDone('Motion');
 }
@@ -170,7 +222,6 @@ async function testReminders() {
   logStart('Reminders');
   await safeCall('Reminders', 'getRemindersAuthorizationStatus', () => DiagnosticPlugin.getRemindersAuthorizationStatus());
   await safeCall('Reminders', 'isRemindersAuthorized', () => DiagnosticPlugin.isRemindersAuthorized());
-  // Triggers permission dialog — runs last
   await safeCall('Reminders', 'requestRemindersAuthorization', () => DiagnosticPlugin.requestRemindersAuthorization());
   logDone('Reminders');
 }
@@ -179,7 +230,6 @@ async function testCalendar() {
   logStart('Calendar');
   await safeCall('Calendar', 'getCalendarAuthorizationStatus', () => DiagnosticPlugin.getCalendarAuthorizationStatus());
   await safeCall('Calendar', 'isCalendarAuthorized', () => DiagnosticPlugin.isCalendarAuthorized());
-  // Triggers permission dialog — runs last
   await safeCall('Calendar', 'requestCalendarAuthorization', () => DiagnosticPlugin.requestCalendarAuthorization());
   logDone('Calendar');
 }
@@ -188,42 +238,35 @@ async function testContacts() {
   logStart('Contacts');
   await safeCall('Contacts', 'getAddressBookAuthorizationStatus', () => DiagnosticPlugin.getAddressBookAuthorizationStatus());
   await safeCall('Contacts', 'isAddressBookAuthorized', () => DiagnosticPlugin.isAddressBookAuthorized());
-  // Triggers permission dialog — runs last
   await safeCall('Contacts', 'requestAddressBookAuthorization', () => DiagnosticPlugin.requestAddressBookAuthorization());
   logDone('Contacts');
 }
-
-async function testNFC() {
-  // NFC is Android-only — all calls expected to return UNIMPLEMENTED on iOS
-  logStart('NFC');
-  await safeCall('NFC', 'isNFCPresent', () => DiagnosticPlugin.isNFCPresent());
-  await safeCall('NFC', 'isNFCEnabled', () => DiagnosticPlugin.isNFCEnabled());
-  await safeCall('NFC', 'isNFCAvailable', () => DiagnosticPlugin.isNFCAvailable());
-  logDone('NFC');
-}
+*/
 
 // =============================================================
-// MAIN RUNNER
+// MAIN RUNNER — Android
 // =============================================================
 
 async function runAllTests() {
   setMarker('DIAG: RUNNING...');
-  logInfo('================ iOS DIAGNOSTIC PLUGIN TEST START ================');
+  logInfo('================ ANDROID DIAGNOSTIC PLUGIN TEST START ================');
 
+  // Shared modules
   await testLocation();
   await testBluetooth();
   await testCamera();
   await testNotifications();
   await testWifi();
   await testMicrophone();
-  await testMotion();
-  await testReminders();
-  await testCalendar();
-  await testContacts();
-  await testNFC();
 
-  logInfo('================ iOS DIAGNOSTIC PLUGIN TEST DONE ================');
-  setMarker('DIAG: DONE — check Xcode console, filter by [DIAG]');
+  // Android-only modules
+  await testNFC();
+  await testExternalStorage();
+
+  // iOS-only modules skipped — see commented functions above
+
+  logInfo('================ ANDROID DIAGNOSTIC PLUGIN TEST DONE ================');
+  setMarker('DIAG: DONE — check logcat, filter by [DIAG]');
 }
 
 // =============================================================
@@ -256,7 +299,7 @@ window.customElements.define(
         <div>
           <capacitor-welcome-titlebar><h1>Diagnostic Plugin Tests</h1></capacitor-welcome-titlebar>
           <main>
-            <p>Tests run automatically on load. Check the Xcode console and filter by <strong>[DIAG]</strong> to see results.</p>
+            <p>Tests run automatically on load. Check logcat and filter by <strong>[DIAG]</strong> to see results.</p>
             <p><button class="button" id="run-tests">Re-run All Tests</button></p>
             <p><button class="button" id="take-photo">Test Camera UI</button></p>
             <p><img id="image" style="max-width: 100%"></p>
