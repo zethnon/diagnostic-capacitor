@@ -4,34 +4,46 @@ import { registerPlugin } from '@capacitor/core';
 
 const DiagnosticPlugin = registerPlugin('DiagnosticPlugin');
 
-const LOG_PREFIX = 'DiagnosticTest';
+// =============================================================
+// LOGGING HELPERS
+// All logs use [DIAG] prefix for easy filtering in Xcode console
+// Filter by: [DIAG] to see only test output
+// =============================================================
 
-// -----------------------
-// Diagnostic helpers
-// -----------------------
-
-function log(section, label, obj) {
-  console.log(`${LOG_PREFIX} --- ${section} -- ${label}`, JSON.stringify(obj));
+function log(module, method, result) {
+  console.log(`[DIAG][${module}] ${method} =>`, JSON.stringify(result));
 }
 
-function logInfo(section, message) {
-  console.log(`${LOG_PREFIX} --- ${section} -- ${message}`);
+function logStart(module) {
+  console.log(`[DIAG][${module}] ========== START ==========`);
 }
 
-function logError(section, label, error) {
-  console.error(`${LOG_PREFIX} --- ${section} -- ${label}`, error);
+function logDone(module) {
+  console.log(`[DIAG][${module}] ========== DONE ==========`);
 }
 
-async function safeCall(section, label, fn) {
+function logInfo(message) {
+  console.log(`[DIAG][INFO] ${message}`);
+}
+
+function logError(module, method, error) {
+  console.error(`[DIAG][${module}][ERROR] ${method} =>`, error && error.message ? error.message : JSON.stringify(error));
+}
+
+async function safeCall(module, method, fn) {
   try {
     const res = await fn();
-    log(section, label, res);
+    log(module, method, res);
     return res;
   } catch (e) {
-    logError(section, label, e);
+    logError(module, method, e);
     return null;
   }
 }
+
+// =============================================================
+// SMOKE MARKER — visible top-left corner of the app UI
+// =============================================================
 
 function setMarker(text) {
   let el = document.getElementById('diag-smoke');
@@ -39,370 +51,240 @@ function setMarker(text) {
     el = document.createElement('div');
     el.id = 'diag-smoke';
     el.style.cssText =
-      'position:fixed;top:0;left:0;z-index:99999;padding:6px;background:#000;color:#0f0;font-family:monospace;';
+      'position:fixed;top:0;left:0;right:0;z-index:99999;padding:6px 10px;background:#111;color:#0f0;font-family:monospace;font-size:12px;word-break:break-all;';
     document.body.appendChild(el);
   }
   el.textContent = text;
   document.title = text;
 }
 
-async function diagSmokeMarker() {
-  setMarker('DIAG_PENDING');
+// =============================================================
+// TEST SUITES
+// =============================================================
 
-  try {
-    const present = await DiagnosticPlugin.isNFCPresent();
-    const enabled = await DiagnosticPlugin.isNFCEnabled();
-    const available = await DiagnosticPlugin.isNFCAvailable();
-
-    setMarker(
-      `DIAG_OK:NFC_PRESENT=${present?.present ? 1 : 0};NFC_ENABLED=${enabled?.enabled ? 1 : 0};NFC_AVAILABLE=${available?.available ? 1 : 0}`
-    );
-  } catch (e) {
-    setMarker(`DIAG_FAIL:${e && e.message ? e.message : String(e)}`);
-  }
+async function testLocation() {
+  logStart('Location');
+  await safeCall('Location', 'getLocationAuthorizationStatus', () => DiagnosticPlugin.getLocationAuthorizationStatus());
+  await safeCall('Location', 'isLocationEnabled', () => DiagnosticPlugin.isLocationEnabled());
+  await safeCall('Location', 'isLocationAvailable', () => DiagnosticPlugin.isLocationAvailable());
+  await safeCall('Location', 'isLocationAuthorized', () => DiagnosticPlugin.isLocationAuthorized());
+  await safeCall('Location', 'getLocationMode', () => DiagnosticPlugin.getLocationMode());
+  await safeCall('Location', 'getLocationAccuracyAuthorization', () => DiagnosticPlugin.getLocationAccuracyAuthorization());
+  await safeCall('Location', 'isGpsLocationEnabled', () => DiagnosticPlugin.isGpsLocationEnabled());
+  await safeCall('Location', 'isNetworkLocationEnabled', () => DiagnosticPlugin.isNetworkLocationEnabled());
+  await safeCall('Location', 'isGpsLocationAvailable', () => DiagnosticPlugin.isGpsLocationAvailable());
+  await safeCall('Location', 'isNetworkLocationAvailable', () => DiagnosticPlugin.isNetworkLocationAvailable());
+  await safeCall('Location', 'isCompassAvailable', () => DiagnosticPlugin.isCompassAvailable());
+  // Triggers permission dialog — runs last
+  await safeCall('Location', 'requestLocationAuthorization(when_in_use)', () => DiagnosticPlugin.requestLocationAuthorization({ mode: 'when_in_use' }));
+  logDone('Location');
 }
 
-async function runDiagnosticSmokeTests() {
-  logInfo('General', '=== DiagnosticPlugin NFC smoke test ===');
-
-  // -----------------------
-  // NFC
-  // -----------------------
-
-  let nfcListener = null;
-
-  try {
-    nfcListener = await DiagnosticPlugin.addListener('nfcStateChange', event => {
-      log('NFC', 'nfcStateChange', event);
-    });
-  } catch (e) {
-    logError('NFC', 'addListener(nfcStateChange)', e);
-  }
-
-  logInfo('NFC', '--- START ---');
-
-  await safeCall('NFC', 'isNFCPresent', () => DiagnosticPlugin.isNFCPresent());
-  await safeCall('NFC', 'isNFCEnabled', () => DiagnosticPlugin.isNFCEnabled());
-  await safeCall('NFC', 'isNFCAvailable', () => DiagnosticPlugin.isNFCAvailable());
-
-  // Manual settings navigation check:
-   await safeCall('NFC', 'switchToNFCSettings', () =>
-     DiagnosticPlugin.switchToNFCSettings()
-  );
-
-  if (nfcListener && nfcListener.remove) {
-    try {
-      await nfcListener.remove();
-    } catch (e) {
-      logError('NFC', 'remove nfc listener', e);
-    }
-  }
-
-  /*
-  // -----------------------
-  // External Storage
-  // -----------------------
-
-  logInfo('ExternalStorage', '--- START ---');
-
-  const external_storage = await safeCall(
-    'ExternalStorage',
-    'getExternalSdCardDetails',
-    () => DiagnosticPlugin.getExternalSdCardDetails()
-  );
-
-  const details = external_storage?.details ?? [];
-
-  if (Array.isArray(details)) {
-    logInfo('ExternalStorage', `details_count=${details.length}`);
-
-    details.forEach((detail, index) => {
-      log('ExternalStorage', `detail[${index}]`, detail);
-    });
-  } else {
-    logError(
-      'ExternalStorage',
-      'details shape',
-      new Error('Expected result.details to be an array')
-    );
-  }
-  */
-
-  /*
-  // -----------------------
-  // Wifi
-  // -----------------------
-
-  logInfo('Wifi', '--- START ---');
-
-  await safeCall('Wifi', 'isWifiAvailable', () => DiagnosticPlugin.isWifiAvailable());
-  await safeCall('Wifi', 'isWifiEnabled', () => DiagnosticPlugin.isWifiEnabled());
-
-  // Manual settings navigation check:
-  // await safeCall('Wifi', 'switchToWifiSettings', () =>
-  //   DiagnosticPlugin.switchToWifiSettings()
-  // );
-
-  logInfo('Wifi', '--- SET STATE TESTS ---');
-
-  await safeCall('Wifi', 'setWifiState(false)', () =>
-    DiagnosticPlugin.setWifiState({ enable: false })
-  );
-
-  await safeCall('Wifi', 'setWifiState(true)', () =>
-    DiagnosticPlugin.setWifiState({ enable: true })
-  );
-
-  await safeCall('Wifi', 'isWifiAvailable [after setWifiState]', () =>
-    DiagnosticPlugin.isWifiAvailable()
-  );
-
-  await safeCall('Wifi', 'isWifiEnabled [after setWifiState]', () =>
-    DiagnosticPlugin.isWifiEnabled()
-  );
-  */
-
-  /*
-  // -----------------------
-  // Bluetooth
-  // -----------------------
+async function testBluetooth() {
+  logStart('Bluetooth');
 
   let bluetoothListener = null;
-
   try {
     bluetoothListener = await DiagnosticPlugin.addListener('bluetoothStateChange', event => {
-      log('Bluetooth', 'bluetoothStateChange', event);
+      log('Bluetooth', 'EVENT:bluetoothStateChange', event);
     });
   } catch (e) {
     logError('Bluetooth', 'addListener(bluetoothStateChange)', e);
   }
 
-  logInfo('Bluetooth', '--- START ---');
+  await safeCall('Bluetooth', 'ensureBluetoothManager', () => DiagnosticPlugin.ensureBluetoothManager());
+  await safeCall('Bluetooth', 'getBluetoothState', () => DiagnosticPlugin.getBluetoothState());
+  await safeCall('Bluetooth', 'isBluetoothAvailable', () => DiagnosticPlugin.isBluetoothAvailable());
+  await safeCall('Bluetooth', 'isBluetoothEnabled', () => DiagnosticPlugin.isBluetoothEnabled());
+  await safeCall('Bluetooth', 'hasBluetoothSupport', () => DiagnosticPlugin.hasBluetoothSupport());
+  await safeCall('Bluetooth', 'hasBluetoothLESupport', () => DiagnosticPlugin.hasBluetoothLESupport());
+  await safeCall('Bluetooth', 'hasBluetoothLEPeripheralSupport', () => DiagnosticPlugin.hasBluetoothLEPeripheralSupport());
+  await safeCall('Bluetooth', 'getBluetoothAuthorizationStatus', () => DiagnosticPlugin.getBluetoothAuthorizationStatus());
+  await safeCall('Bluetooth', 'getBluetoothAuthorizationStatuses', () => DiagnosticPlugin.getBluetoothAuthorizationStatuses());
+  // Triggers permission dialog — runs last
+  await safeCall('Bluetooth', 'requestBluetoothAuthorization', () => DiagnosticPlugin.requestBluetoothAuthorization());
 
-  await safeCall('Bluetooth', 'ensureBluetoothManager()', () =>
-    DiagnosticPlugin.ensureBluetoothManager()
-  );
-
-  await safeCall('Bluetooth', 'getBluetoothState', () =>
-    DiagnosticPlugin.getBluetoothState()
-  );
-  await safeCall('Bluetooth', 'isBluetoothAvailable', () =>
-    DiagnosticPlugin.isBluetoothAvailable()
-  );
-  await safeCall('Bluetooth', 'isBluetoothEnabled', () =>
-    DiagnosticPlugin.isBluetoothEnabled()
-  );
-
-  await safeCall('Bluetooth', 'hasBluetoothSupport', () =>
-    DiagnosticPlugin.hasBluetoothSupport()
-  );
-  await safeCall('Bluetooth', 'hasBluetoothLESupport', () =>
-    DiagnosticPlugin.hasBluetoothLESupport()
-  );
-  await safeCall('Bluetooth', 'hasBluetoothLEPeripheralSupport', () =>
-    DiagnosticPlugin.hasBluetoothLEPeripheralSupport()
-  );
-
-  await safeCall('Bluetooth', 'getBluetoothAuthorizationStatus', () =>
-    DiagnosticPlugin.getBluetoothAuthorizationStatus()
-  );
-
-  await safeCall('Bluetooth', 'requestBluetoothAuthorization()', () =>
-    DiagnosticPlugin.requestBluetoothAuthorization()
-  );
-
-  await safeCall('Bluetooth', 'getBluetoothAuthorizationStatuses', () =>
-    DiagnosticPlugin.getBluetoothAuthorizationStatuses()
-  );
-
-  if (bluetoothListener && bluetoothListener.remove) {
-    try {
-      await bluetoothListener.remove();
-    } catch (e) {
-      logError('Bluetooth', 'remove bluetooth listener', e);
-    }
+  if (bluetoothListener) {
+    try { await bluetoothListener.remove(); } catch (e) { logError('Bluetooth', 'removeListener', e); }
   }
-  */
 
-  /*
-  // -----------------------
-  // Camera
-  // -----------------------
-
-  logInfo('Camera', '--- START ---');
-
-  await safeCall('Camera', 'isCameraPresent', () =>
-    DiagnosticPlugin.isCameraPresent()
-  );
-
-  await safeCall('Camera', 'getCameraAuthorizationStatus [camera-only]', () =>
-    DiagnosticPlugin.getCameraAuthorizationStatus({ storage: false })
-  );
-
-  await safeCall('Camera', 'getCameraAuthorizationStatuses [with-storage]', () =>
-    DiagnosticPlugin.getCameraAuthorizationStatuses({ storage: true })
-  );
-
-  await safeCall('Camera', 'requestCameraAuthorization [camera-only]', () =>
-    DiagnosticPlugin.requestCameraAuthorization({ storage: false })
-  );
-
-  await safeCall('Camera', 'requestCameraAuthorization [camera+storage]', () =>
-    DiagnosticPlugin.requestCameraAuthorization({ storage: true })
-  );
-  */
-
-  /*
-  // -----------------------
-  // Notifications
-  // -----------------------
-
-  logInfo('Notifications', '--- START ---');
-
-  await safeCall('Notifications', 'getRemoteNotificationsAuthorizationStatus', () =>
-    DiagnosticPlugin.getRemoteNotificationsAuthorizationStatus()
-  );
-
-  await safeCall('Notifications', 'isRemoteNotificationsEnabled', () =>
-    DiagnosticPlugin.isRemoteNotificationsEnabled()
-  );
-
-  await safeCall('Notifications', 'getRemoteNotificationTypes', () =>
-    DiagnosticPlugin.getRemoteNotificationTypes()
-  );
-
-  await safeCall('Notifications', 'isRegisteredForRemoteNotifications', () =>
-    DiagnosticPlugin.isRegisteredForRemoteNotifications()
-  );
-
-  await safeCall('Notifications', 'requestRemoteNotificationsAuthorization', () =>
-    DiagnosticPlugin.requestRemoteNotificationsAuthorization({
-      types: ['alert', 'sound', 'badge'],
-      omitRegistration: false,
-    })
-  );
-  */
-
-  await diagSmokeMarker();
-
-  logInfo('General', '=== Done ===');
+  logDone('Bluetooth');
 }
 
-// -----------------------
-// UI components
-// -----------------------
+async function testCamera() {
+  logStart('Camera');
+  await safeCall('Camera', 'isCameraPresent', () => DiagnosticPlugin.isCameraPresent());
+  await safeCall('Camera', 'getCameraAuthorizationStatus(camera-only)', () => DiagnosticPlugin.getCameraAuthorizationStatus({ storage: false }));
+  await safeCall('Camera', 'getCameraAuthorizationStatus(with-storage)', () => DiagnosticPlugin.getCameraAuthorizationStatus({ storage: true }));
+  await safeCall('Camera', 'getCameraAuthorizationStatuses(camera-only)', () => DiagnosticPlugin.getCameraAuthorizationStatuses({ storage: false }));
+  await safeCall('Camera', 'getCameraAuthorizationStatuses(with-storage)', () => DiagnosticPlugin.getCameraAuthorizationStatuses({ storage: true }));
+  // Triggers permission dialog — runs last
+  await safeCall('Camera', 'requestCameraAuthorization(camera-only)', () => DiagnosticPlugin.requestCameraAuthorization({ storage: false }));
+  await safeCall('Camera', 'requestCameraAuthorization(with-storage)', () => DiagnosticPlugin.requestCameraAuthorization({ storage: true }));
+  logDone('Camera');
+}
+
+async function testNotifications() {
+  logStart('Notifications');
+  await safeCall('Notifications', 'getRemoteNotificationsAuthorizationStatus', () => DiagnosticPlugin.getRemoteNotificationsAuthorizationStatus());
+  await safeCall('Notifications', 'isRemoteNotificationsEnabled', () => DiagnosticPlugin.isRemoteNotificationsEnabled());
+  await safeCall('Notifications', 'isRegisteredForRemoteNotifications', () => DiagnosticPlugin.isRegisteredForRemoteNotifications());
+  await safeCall('Notifications', 'getRemoteNotificationTypes', () => DiagnosticPlugin.getRemoteNotificationTypes());
+  // Triggers permission dialog — runs last
+  await safeCall('Notifications', 'requestRemoteNotificationsAuthorization', () =>
+    DiagnosticPlugin.requestRemoteNotificationsAuthorization({ types: ['alert', 'sound', 'badge'], omitRegistration: false })
+  );
+  logDone('Notifications');
+}
+
+async function testWifi() {
+  logStart('Wifi');
+  await safeCall('Wifi', 'isWifiAvailable', () => DiagnosticPlugin.isWifiAvailable());
+  await safeCall('Wifi', 'isWifiEnabled', () => DiagnosticPlugin.isWifiEnabled());
+  await safeCall('Wifi', 'getLocalNetworkAuthorizationStatus', () => DiagnosticPlugin.getLocalNetworkAuthorizationStatus({ timeoutMs: 3000 }));
+  // Triggers permission dialog — runs last
+  await safeCall('Wifi', 'requestLocalNetworkAuthorization', () => DiagnosticPlugin.requestLocalNetworkAuthorization({ timeoutMs: 5000 }));
+  logDone('Wifi');
+}
+
+async function testMicrophone() {
+  logStart('Microphone');
+  await safeCall('Microphone', 'getMicrophoneAuthorizationStatus', () => DiagnosticPlugin.getMicrophoneAuthorizationStatus());
+  await safeCall('Microphone', 'isMicrophoneAuthorized', () => DiagnosticPlugin.isMicrophoneAuthorized());
+  // Triggers permission dialog — runs last
+  await safeCall('Microphone', 'requestMicrophoneAuthorization', () => DiagnosticPlugin.requestMicrophoneAuthorization());
+  logDone('Microphone');
+}
+
+async function testMotion() {
+  logStart('Motion');
+  await safeCall('Motion', 'isMotionAvailable', () => DiagnosticPlugin.isMotionAvailable());
+  await safeCall('Motion', 'isMotionRequestOutcomeAvailable', () => DiagnosticPlugin.isMotionRequestOutcomeAvailable());
+  await safeCall('Motion', 'getMotionAuthorizationStatus', () => DiagnosticPlugin.getMotionAuthorizationStatus());
+  // Triggers permission dialog — runs last
+  await safeCall('Motion', 'requestMotionAuthorization', () => DiagnosticPlugin.requestMotionAuthorization());
+  logDone('Motion');
+}
+
+async function testReminders() {
+  logStart('Reminders');
+  await safeCall('Reminders', 'getRemindersAuthorizationStatus', () => DiagnosticPlugin.getRemindersAuthorizationStatus());
+  await safeCall('Reminders', 'isRemindersAuthorized', () => DiagnosticPlugin.isRemindersAuthorized());
+  // Triggers permission dialog — runs last
+  await safeCall('Reminders', 'requestRemindersAuthorization', () => DiagnosticPlugin.requestRemindersAuthorization());
+  logDone('Reminders');
+}
+
+async function testCalendar() {
+  logStart('Calendar');
+  await safeCall('Calendar', 'getCalendarAuthorizationStatus', () => DiagnosticPlugin.getCalendarAuthorizationStatus());
+  await safeCall('Calendar', 'isCalendarAuthorized', () => DiagnosticPlugin.isCalendarAuthorized());
+  // Triggers permission dialog — runs last
+  await safeCall('Calendar', 'requestCalendarAuthorization', () => DiagnosticPlugin.requestCalendarAuthorization());
+  logDone('Calendar');
+}
+
+async function testContacts() {
+  logStart('Contacts');
+  await safeCall('Contacts', 'getAddressBookAuthorizationStatus', () => DiagnosticPlugin.getAddressBookAuthorizationStatus());
+  await safeCall('Contacts', 'isAddressBookAuthorized', () => DiagnosticPlugin.isAddressBookAuthorized());
+  // Triggers permission dialog — runs last
+  await safeCall('Contacts', 'requestAddressBookAuthorization', () => DiagnosticPlugin.requestAddressBookAuthorization());
+  logDone('Contacts');
+}
+
+async function testNFC() {
+  // NFC is Android-only — all calls expected to return UNIMPLEMENTED on iOS
+  logStart('NFC');
+  await safeCall('NFC', 'isNFCPresent', () => DiagnosticPlugin.isNFCPresent());
+  await safeCall('NFC', 'isNFCEnabled', () => DiagnosticPlugin.isNFCEnabled());
+  await safeCall('NFC', 'isNFCAvailable', () => DiagnosticPlugin.isNFCAvailable());
+  logDone('NFC');
+}
+
+// =============================================================
+// MAIN RUNNER
+// =============================================================
+
+async function runAllTests() {
+  setMarker('DIAG: RUNNING...');
+  logInfo('================ iOS DIAGNOSTIC PLUGIN TEST START ================');
+
+  await testLocation();
+  await testBluetooth();
+  await testCamera();
+  await testNotifications();
+  await testWifi();
+  await testMicrophone();
+  await testMotion();
+  await testReminders();
+  await testCalendar();
+  await testContacts();
+  await testNFC();
+
+  logInfo('================ iOS DIAGNOSTIC PLUGIN TEST DONE ================');
+  setMarker('DIAG: DONE — check Xcode console, filter by [DIAG]');
+}
+
+// =============================================================
+// WEB COMPONENT / APP ENTRY
+// =============================================================
 
 window.customElements.define(
   'capacitor-welcome',
   class extends HTMLElement {
     constructor() {
       super();
-
       SplashScreen.hide();
-
       const root = this.attachShadow({ mode: 'open' });
-
       root.innerHTML = `
-    <style>
-      :host {
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
-        display: block;
-        width: 100%;
-        height: 100%;
-      }
-      h1, h2, h3, h4, h5 {
-        text-transform: uppercase;
-      }
-      .button {
-        display: inline-block;
-        padding: 10px;
-        background-color: #73B5F6;
-        color: #fff;
-        font-size: 0.9em;
-        border: 0;
-        border-radius: 3px;
-        text-decoration: none;
-        cursor: pointer;
-      }
-      main {
-        padding: 15px;
-      }
-      main hr { height: 1px; background-color: #eee; border: 0; }
-      main h1 {
-        font-size: 1.4em;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-      }
-      main h2 {
-        font-size: 1.1em;
-      }
-      main h3 {
-        font-size: 0.9em;
-      }
-      main p {
-        color: #333;
-      }
-      main pre {
-        white-space: pre-line;
-      }
-    </style>
-    <div>
-      <capacitor-welcome-titlebar>
-        <h1>Capacitor</h1>
-      </capacitor-welcome-titlebar>
-      <main>
-        <p>
-          Capacitor makes it easy to build powerful apps for the app stores, mobile web (Progressive Web Apps), and desktop, all
-          with a single code base.
-        </p>
-        <h2>Getting Started</h2>
-        <p>
-          You'll probably need a UI framework to build a full-featured app. Might we recommend
-          <a target="_blank" href="http://ionicframework.com/">Ionic</a>?
-        </p>
-        <p>
-          Visit <a href="https://capacitorjs.com">capacitorjs.com</a> for information
-          on using native features, building plugins, and more.
-        </p>
-        <a href="https://capacitorjs.com" target="_blank" class="button">Read more</a>
-        <h2>Tiny Demo</h2>
-        <p>
-          This demo shows how to call Capacitor plugins. Say cheese!
-        </p>
-        <p>
-          <button class="button" id="take-photo">Take Photo</button>
-        </p>
-        <p>
-          <img id="image" style="max-width: 100%">
-        </p>
-      </main>
-    </div>
-    `;
+        <style>
+          :host {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: block; width: 100%; height: 100%;
+          }
+          main { padding: 15px; }
+          h1 { font-size: 1.2em; text-transform: uppercase; letter-spacing: 1px; }
+          p { color: #333; font-size: 0.9em; }
+          .button {
+            display: inline-block; padding: 10px 16px;
+            background-color: #73B5F6; color: #fff;
+            font-size: 0.9em; border: 0; border-radius: 3px;
+            text-decoration: none; cursor: pointer; margin: 4px 0;
+          }
+        </style>
+        <div>
+          <capacitor-welcome-titlebar><h1>Diagnostic Plugin Tests</h1></capacitor-welcome-titlebar>
+          <main>
+            <p>Tests run automatically on load. Check the Xcode console and filter by <strong>[DIAG]</strong> to see results.</p>
+            <p><button class="button" id="run-tests">Re-run All Tests</button></p>
+            <p><button class="button" id="take-photo">Test Camera UI</button></p>
+            <p><img id="image" style="max-width: 100%"></p>
+          </main>
+        </div>
+      `;
     }
 
     connectedCallback() {
       const self = this;
 
-      self.shadowRoot.querySelector('#take-photo').addEventListener('click', async function () {
+      self.shadowRoot.querySelector('#run-tests').addEventListener('click', () => {
+        runAllTests();
+      });
+
+      self.shadowRoot.querySelector('#take-photo').addEventListener('click', async () => {
         try {
-          const photo = await Camera.getPhoto({
-            resultType: 'uri',
-          });
-
+          const photo = await Camera.getPhoto({ resultType: 'uri' });
           const image = self.shadowRoot.querySelector('#image');
-          if (!image) {
-            return;
-          }
-
-          image.src = photo.webPath;
+          if (image) image.src = photo.webPath;
         } catch (e) {
-          console.warn('User cancelled', e);
+          console.warn('[DIAG][Camera] Camera UI cancelled or failed:', e);
         }
       });
 
-      runDiagnosticSmokeTests();
+      runAllTests();
     }
-  },
+  }
 );
 
 window.customElements.define(
@@ -412,24 +294,17 @@ window.customElements.define(
       super();
       const root = this.attachShadow({ mode: 'open' });
       root.innerHTML = `
-    <style>
-      :host {
-        position: relative;
-        display: block;
-        padding: 15px 15px 15px 15px;
-        text-align: center;
-        background-color: #73B5F6;
-      }
-      ::slotted(h1) {
-        margin: 0;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
-        font-size: 0.9em;
-        font-weight: 600;
-        color: #fff;
-      }
-    </style>
-    <slot></slot>
-    `;
+        <style>
+          :host {
+            display: block; padding: 15px; text-align: center;
+            background-color: #73B5F6;
+          }
+          ::slotted(h1) {
+            margin: 0; font-size: 0.9em; font-weight: 600; color: #fff;
+          }
+        </style>
+        <slot></slot>
+      `;
     }
-  },
+  }
 );
