@@ -1,3 +1,3 @@
-import NoesisDiagnosticCapacitor
+import DiagnosticPlugin
 
 public let isCapacitorApp = true
