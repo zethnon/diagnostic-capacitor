@@ -6,7 +6,7 @@ public class DiagnosticPlugin: CAPPlugin {
 
     private lazy var location = LocationModule()
     private lazy var bluetooth = BluetoothModule(plugin: self)
-    private lazy var camera = CameraModule(plugin: self)
+    private lazy var camera = CameraModule()
     private lazy var notifications = NotificationsModule(plugin: self)
     private lazy var wifi = WifiModule(plugin: self)
     private lazy var microphone = MicrophoneModule(plugin: self)
