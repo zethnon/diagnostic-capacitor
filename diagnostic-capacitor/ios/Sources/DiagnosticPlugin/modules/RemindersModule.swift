@@ -27,10 +27,16 @@ import EventKit
 
     @objc public func isRemindersAuthorized(_ call: CAPPluginCall) {
         let auth_status = EKEventStore.authorizationStatus(for: .reminder)
-
-        call.resolve([
-            "value": auth_status == .authorized || auth_status == .fullAccess
-        ])
+        
+        let authorized: Bool
+            
+        if #available(iOS 17.0, *) {
+            authorized = auth_status == .authorized || auth_status == .fullAccess
+        } else {
+            authorized = auth_status == .authorized
+        }
+        
+        call.resolve(["value": authorized])
     }
 
     @objc public func requestRemindersAuthorization(_ call: CAPPluginCall) {

@@ -21,13 +21,21 @@ import EventKit
         }
     }
 
+
     @objc public func isCalendarAuthorized(_ call: CAPPluginCall) {
         DispatchQueue.global(qos: .userInitiated).async {
             let auth_status = EKEventStore.authorizationStatus(for: .event)
             
-            // on iOS 17+, the status .fullAccess is introduced, so we gotta also account for that
-            let authorized = (auth_status == .authorized || auth_status == .fullAccess)
-                call.resolve(["value": authorized])
+            let authorized: Bool
+            
+            //iOS 17+ only needs an #available guard
+            if #available(iOS 17.0, *) {
+                authorized = (auth_status == .authorized || auth_status == .fullAccess)
+            } else {
+                authorized = (auth_status == .authorized)
+            }
+            
+            call.resolve(["value": authorized])
         }
     }
 

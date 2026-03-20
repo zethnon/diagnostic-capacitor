@@ -16,7 +16,7 @@ import Network
         case indeterminate = -2
     }
 
-    private var browser: nw_browser_t?
+    private var nw_browser_obj: NWBrowser?
     private var net_service: NetService?
     private var local_network_calls: [CAPPluginCall] = []
     private var local_network_timer: Timer?
@@ -48,56 +48,47 @@ import Network
 
             let timeout_seconds = self.resolve_local_network_timeout(from: call)
 
-            if #available(iOS 14.0, *) {
-                let parameters = nw_parameters_create_secure_tcp(NW_PARAMETERS_DISABLE_PROTOCOL, NW_PARAMETERS_DEFAULT_CONFIGURATION)
-                nw_parameters_set_include_peer_to_peer(parameters, true)
+            // Swift NWBrowser/NWParameters — replaces C NW_PARAMETERS_* macros
+            let parameters = NWParameters(tls: nil, tcp: NWProtocolTCP.Options())
+            parameters.includePeerToPeer = true
 
-                let descriptor = nw_browse_descriptor_create_bonjour_service("_bonjour._tcp", nil)
-                self.browser = nw_browser_create(descriptor, parameters)
+            let descriptor = NWBrowser.Descriptor.bonjour(type: "_bonjour._tcp", domain: nil)
+            self.nw_browser_obj = NWBrowser(for: descriptor, using: parameters)
 
-                if let browser = self.browser {
-                    nw_browser_set_queue(browser, DispatchQueue.main)
+            self.net_service = NetService(domain: "local.", type: "_lnp._tcp.", name: "LocalNetworkPrivacy", port: 1100)
+            self.is_requesting = true
+            self.is_publishing = false
+
+            self.log_debug("Starting local network permission status check (timeout \(String(format: "%.2f", timeout_seconds))s)")
+
+            DispatchQueue.main.async {
+                guard !self.is_publishing else {
+                    self.log_debug("Local network permission request already publishing, skipping start")
+                    return
                 }
 
-                self.net_service = NetService(domain: "local.", type: "_lnp._tcp.", name: "LocalNetworkPrivacy", port: 1100)
+                self.is_publishing = true
+                self.net_service?.delegate = self
 
-                self.is_requesting = true
-                self.is_publishing = false
-
-                self.log_debug("Starting local network permission status check (timeout \(String(format: "%.2f", timeout_seconds))s)")
-
-                DispatchQueue.main.async {
-                    guard !self.is_publishing else {
-                        self.log_debug("Local network permission request already publishing, skipping start")
-                        return
+                if let browser = self.nw_browser_obj {
+                    browser.stateUpdateHandler = { [weak self] state in
+                        self?.handle_browser_state_swift(state, context: "status check")
                     }
+                    browser.start(queue: DispatchQueue.main)
+                } else {
+                    self.log_debug("Attempted to start browser but browser is null")
+                }
 
-                    self.is_publishing = true
-                    self.net_service?.delegate = self
+                self.net_service?.publish()
+                self.net_service?.schedule(in: .main, forMode: .common)
 
-                    if let browser = self.browser {
-                        nw_browser_set_state_changed_handler(browser) { [weak self] new_state, error in
-                            self?.handle_browser_state(new_state, error: error, context: "status check")
-                        }
-                        nw_browser_start(browser)
-                    } else {
-                        self.log_debug("Attempted to start browser but browser is null")
-                    }
-
-                    self.net_service?.publish()
-                    self.net_service?.schedule(in: .main, forMode: .common)
-
-                    if timeout_seconds > 0 {
-                        self.local_network_timer = Timer.scheduledTimer(withTimeInterval: timeout_seconds, repeats: false) { [weak self] _ in
-                            guard let self else { return }
-                            self.log_debug("Local network permission status check timed out after \(String(format: "%.2f", timeout_seconds))s")
-                            self.complete_local_network_flow(with: .indeterminate, should_cache: false)
-                        }
+                if timeout_seconds > 0 {
+                    self.local_network_timer = Timer.scheduledTimer(withTimeInterval: timeout_seconds, repeats: false) { [weak self] _ in
+                        guard let self else { return }
+                        self.log_debug("Local network permission status check timed out after \(String(format: "%.2f", timeout_seconds))s")
+                        self.complete_local_network_flow(with: .indeterminate, should_cache: false)
                     }
                 }
-            } else {
-                self.log_debug("iOS version < 14.0, so local network permission is not required")
-                self.call_local_network_callbacks(.granted)
             }
         }
     }
@@ -112,36 +103,26 @@ import Network
             self.is_requesting = true
             self.append_local_network_call(call)
 
-            if #available(iOS 14.0, *) {
-                let parameters = nw_parameters_create_secure_tcp(NW_PARAMETERS_DISABLE_PROTOCOL, NW_PARAMETERS_DEFAULT_CONFIGURATION)
-                nw_parameters_set_include_peer_to_peer(parameters, true)
+            let parameters = NWParameters(tls: nil, tcp: NWProtocolTCP.Options())
+            parameters.includePeerToPeer = true
 
-                let descriptor = nw_browse_descriptor_create_bonjour_service("_bonjour._tcp", nil)
-                self.browser = nw_browser_create(descriptor, parameters)
+            let descriptor = NWBrowser.Descriptor.bonjour(type: "_bonjour._tcp", domain: nil)
+            self.nw_browser_obj = NWBrowser(for: descriptor, using: parameters)
 
-                if let browser = self.browser {
-                    nw_browser_set_queue(browser, DispatchQueue.main)
-                    nw_browser_set_state_changed_handler(browser) { [weak self] new_state, error in
-                        self?.handle_browser_state(new_state, error: error, context: "authorization request")
-                    }
-                }
+            self.nw_browser_obj?.stateUpdateHandler = { [weak self] state in
+                self?.handle_browser_state_swift(state, context: "authorization request")
+            }
 
-                self.net_service = NetService(domain: "local.", type: "_lnp._tcp.", name: "LocalNetworkPrivacy", port: 1100)
-                self.net_service?.delegate = self
+            self.net_service = NetService(domain: "local.", type: "_lnp._tcp.", name: "LocalNetworkPrivacy", port: 1100)
+            self.net_service?.delegate = self
 
-                DispatchQueue.main.async {
-                    if let browser = self.browser {
-                        nw_browser_start(browser)
-                    }
-                    self.net_service?.publish()
-                    self.net_service?.schedule(in: .main, forMode: .common)
-                }
-            } else {
-                self.call_local_network_callbacks(.granted)
+            DispatchQueue.main.async {
+                self.nw_browser_obj?.start(queue: DispatchQueue.main)
+                self.net_service?.publish()
+                self.net_service?.schedule(in: .main, forMode: .common)
             }
         }
     }
-
 
     @objc public func isWifiAvailable(_ call: CAPPluginCall) {
         DispatchQueue.global(qos: .background).async {
@@ -155,82 +136,85 @@ import Network
         }
     }
 
-
     private func is_wifi_enabled() -> Bool {
         var interfaces: UnsafeMutablePointer<ifaddrs>?
         var counted_names: [String: Int] = [:]
 
-        guard getifaddrs(&interfaces) == 0, let first = interfaces else {
-            return false
-        }
-
+        guard getifaddrs(&interfaces) == 0, let first = interfaces else { return false }
         defer { freeifaddrs(interfaces) }
 
         var cursor: UnsafeMutablePointer<ifaddrs>? = first
         while let current = cursor {
             let flags = Int32(current.pointee.ifa_flags)
             if (flags & IFF_UP) == IFF_UP, let name_c = current.pointee.ifa_name {
-                let name = String(cString: name_c)
-                counted_names[name, default: 0] += 1
+                counted_names[String(cString: name_c), default: 0] += 1
             }
             cursor = current.pointee.ifa_next
         }
-
         return (counted_names["awdl0"] ?? 0) > 1
     }
 
     private func connected_to_wifi() -> Bool {
         var addresses: UnsafeMutablePointer<ifaddrs>?
 
-        guard getifaddrs(&addresses) == 0, let first = addresses else {
-            return false
-        }
-
+        guard getifaddrs(&addresses) == 0, let first = addresses else { return false }
         defer { freeifaddrs(addresses) }
 
         var cursor: UnsafeMutablePointer<ifaddrs>? = first
         while let current = cursor {
             let interface = current.pointee
-
             if let addr = interface.ifa_addr,
                addr.pointee.sa_family == UInt8(AF_INET),
                (interface.ifa_flags & UInt32(IFF_LOOPBACK)) == 0,
-               let name_c = interface.ifa_name {
-
-                let name = String(cString: name_c)
-                if name == "en0" {
-                    self.log_debug("Wifi ON")
-                    return true
-                }
+               let name_c = interface.ifa_name,
+               String(cString: name_c) == "en0" {
+                log_debug("Wifi ON")
+                return true
             }
-
             cursor = interface.ifa_next
         }
-
         return false
     }
 
     private func reset_local_network() {
         log_debug("resetting")
-
         local_network_timer?.invalidate()
         local_network_timer = nil
-
         is_publishing = false
         is_requesting = false
-
-        if #available(iOS 13.0, *) {
-            browser.map { nw_browser_cancel($0) }
-        }
-        browser = nil
-
+        nw_browser_obj?.cancel()
+        nw_browser_obj = nil
         net_service?.stop()
         net_service = nil
     }
 
+    private func handle_browser_state_swift(_ state: NWBrowser.State, context: String) {
+        switch state {
+        case .waiting(let error):
+            log_debug("Browser \(context) waiting: \(error)")
+            if is_permission_denied(error) {
+                complete_local_network_flow(with: .denied, should_cache: true)
+            }
+        case .failed(let error):
+            log_debug("Browser \(context) failed: \(error)")
+            if is_permission_denied(error) {
+                complete_local_network_flow(with: .denied, should_cache: true)
+            } else {
+                complete_local_network_flow(with: .indeterminate, should_cache: false)
+            }
+        default:
+            break
+        }
+    }
+
+    private func is_permission_denied(_ error: NWError) -> Bool {
+        if case .posix(let code) = error, code == .EPERM { return true }
+        if case .dns(let code) = error, code == -65570 { return true } // kDNSServiceErr_PolicyDenied
+        return false
+    }
+
     private func call_local_network_callbacks(_ result: LocalNetworkPermissionState) {
-        let calls = synchronized_take_local_network_calls()
-        for call in calls {
+        for call in synchronized_take_local_network_calls() {
             resolve_int(call, result.rawValue)
         }
     }
@@ -238,94 +222,25 @@ import Network
     private func complete_local_network_flow(with state: LocalNetworkPermissionState, should_cache: Bool) {
         let completion = {
             self.reset_local_network()
-
             if should_cache && (state == .granted || state == .denied) {
                 UserDefaults.standard.set(state.rawValue, forKey: self.local_network_permission_key)
                 UserDefaults.standard.synchronize()
             }
-
             self.call_local_network_callbacks(state)
         }
-
-        if Thread.isMainThread {
-            completion()
-        } else {
-            DispatchQueue.main.async(execute: completion)
-        }
+        Thread.isMainThread ? completion() : DispatchQueue.main.async(execute: completion)
     }
 
     private func resolve_local_network_timeout(from call: CAPPluginCall) -> TimeInterval {
-        guard
-            let options = call.options as? [String: Any],
-            let timeout_ms = options["timeoutMs"] as? NSNumber
-        else {
+        guard let options = call.options as? [String: Any],
+              let timeout_ms = options["timeoutMs"] as? NSNumber else {
             return local_network_default_timeout_seconds
         }
-
-        let milliseconds = max(0, timeout_ms.doubleValue)
-        return milliseconds / 1000.0
+        return max(0, timeout_ms.doubleValue) / 1000.0
     }
-
-    @available(iOS 13.0, *)
-    private func is_permission_denied_error(_ error: nw_error_t?) -> Bool {
-        guard let error else { return false }
-
-        let domain = nw_error_get_error_domain(error)
-        let code = Int32(nw_error_get_error_code(error))
-
-        if domain == nw_error_domain_posix && code == EPERM {
-            return true
-        }
-
-        if domain == nw_error_domain_dns && code == kDNSServiceErr_PolicyDenied {
-            return true
-        }
-
-        return false
-    }
-
-    @available(iOS 13.0, *)
-    private func handle_browser_state(_ new_state: nw_browser_state_t, error: nw_error_t?, context: String) {
-        if new_state == nw_browser_state_waiting || new_state == nw_browser_state_failed {
-            if is_permission_denied_error(error) {
-                let domain = error.map { Int(nw_error_get_error_domain($0).rawValue) } ?? -1
-                let code = error.map { Int(nw_error_get_error_code($0)) } ?? -1
-                log_debug("Local network permission denied during \(context) (domain=\(domain), code=\(code))")
-                complete_local_network_flow(with: .denied, should_cache: true)
-                return
-            }
-
-            if let error {
-                let domain = Int(nw_error_get_error_domain(error).rawValue)
-                let code = Int(nw_error_get_error_code(error))
-                log_debug("Local network browser \(context) state \(new_state.rawValue) error domain=\(domain) code=\(code)")
-            } else {
-                log_debug("Local network browser \(context) entered state \(new_state.rawValue) without error")
-            }
-
-            if new_state == nw_browser_state_failed {
-                complete_local_network_flow(with: .indeterminate, should_cache: false)
-            }
-        }
-    }
-
-    public func netServiceDidPublish(_ sender: NetService) {
-        log_debug("netServiceDidPublish: Local network permission has been granted")
-        complete_local_network_flow(with: .granted, should_cache: true)
-    }
-
-    public func netService(_ sender: NetService, didNotPublish errorDict: [String : NSNumber]) {
-        let error_domain = errorDict[NetService.errorDomain]
-        let error_code = errorDict[NetService.errorCode]
-        log_debug("netService didNotPublish (domain=\(String(describing: error_domain)), code=\(String(describing: error_code)))")
-        complete_local_network_flow(with: .indeterminate, should_cache: false)
-    }
-
 
     private func append_local_network_call(_ call: CAPPluginCall) {
-        objc_sync_enter(self)
-        local_network_calls.append(call)
-        objc_sync_exit(self)
+        objc_sync_enter(self); local_network_calls.append(call); objc_sync_exit(self)
     }
 
     private func synchronized_take_local_network_calls() -> [CAPPluginCall] {
@@ -336,15 +251,17 @@ import Network
         return calls
     }
 
-    private func resolve_bool(_ call: CAPPluginCall, _ value: Bool) {
-        call.resolve(["value": value])
+    public func netServiceDidPublish(_ sender: NetService) {
+        log_debug("Local network permission granted")
+        complete_local_network_flow(with: .granted, should_cache: true)
     }
 
-    private func resolve_int(_ call: CAPPluginCall, _ value: Int) {
-        call.resolve(["value": value])
+    public func netService(_ sender: NetService, didNotPublish errorDict: [String: NSNumber]) {
+        log_debug("netService didNotPublish: \(errorDict)")
+        complete_local_network_flow(with: .indeterminate, should_cache: false)
     }
 
-    private func log_debug(_ message: String) {
-        CAPLog.print("[Diagnostic][Wifi] \(message)")
-    }
+    private func resolve_bool(_ call: CAPPluginCall, _ value: Bool) { call.resolve(["value": value]) }
+    private func resolve_int(_ call: CAPPluginCall, _ value: Int) { call.resolve(["value": value]) }
+    private func log_debug(_ message: String) { CAPLog.print("[Diagnostic][Wifi] \(message)") }
 }
