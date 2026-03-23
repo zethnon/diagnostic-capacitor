@@ -21,6 +21,11 @@ import com.getcapacitor.PluginCall;
 
 public class BluetoothModule {
 
+    /*
+     * Interface implemented by DiagnosticPlugin to forward Bluetooth state
+     * change events up to the JS layer via notifyListeners().
+     * Modules can't call notifyListeners() directly — only the plugin can.
+     */
     public interface BluetoothEventEmitter {
         void emitBluetoothStateChange(String state);
     }
@@ -39,6 +44,8 @@ public class BluetoothModule {
     private static final String STATUS_DENIED_ALWAYS = "denied_always";
     private static final String STATUS_NOT_DETERMINED = "not_determined";
 
+    // Android 12+ (API 31) split bluetooth into three runtime permissions.
+    // We track all three separately to match Cordova's getBluetoothAuthorizationStatuses() output.
     private static final String[] BLUETOOTH_PERMISSION_NAMES = new String[] {
         "BLUETOOTH_ADVERTISE",
         "BLUETOOTH_CONNECT",
@@ -53,7 +60,6 @@ public class BluetoothModule {
 
     private final Plugin plugin;
     private final BluetoothEventEmitter event_emitter;
-
     private String current_bluetooth_state;
 
     public BluetoothModule(Plugin plugin, BluetoothEventEmitter event_emitter) {
@@ -61,6 +67,11 @@ public class BluetoothModule {
         this.event_emitter = event_emitter;
     }
 
+    /*
+     * Broadcast receiver for ACTION_STATE_CHANGED. Registered in load() and
+     * cleaned up in handleOnDestroy(). Fires notifyBluetoothStateChange()
+     * which deduplicates events before forwarding to the plugin emitter.
+     */
     private final BroadcastReceiver bluetooth_state_change_receiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
@@ -70,6 +81,11 @@ public class BluetoothModule {
         }
     };
 
+    /*
+     * Called once from DiagnosticPlugin.load().
+     * Registers the state change receiver and initializes current_bluetooth_state
+     * so the first event comparison has a baseline.
+     */
     public void load() {
         Log.d(TAG, "BluetoothModule.load()");
 
@@ -84,6 +100,10 @@ public class BluetoothModule {
         }
     }
 
+    /*
+     * Unregisters the broadcast receiver. Called from DiagnosticPlugin.handleOnDestroy().
+     * Safe to call if never registered — catches the exception silently.
+     */
     public void handleOnDestroy() {
         try {
             plugin.getContext().unregisterReceiver(bluetooth_state_change_receiver);
@@ -91,6 +111,9 @@ public class BluetoothModule {
         }
     }
 
+    /*
+     * Opens Android's Bluetooth settings page. No return value — resolves void.
+     */
     public void switchToBluetoothSettings(PluginCall call) {
         try {
             Intent settings_intent = new Intent(Settings.ACTION_BLUETOOTH_SETTINGS);
@@ -102,24 +125,39 @@ public class BluetoothModule {
         }
     }
 
+    /*
+     * Returns { available: boolean } — true if the device has Bluetooth hardware AND it's powered on.
+     */
     public void isBluetoothAvailable(PluginCall call) {
         JSObject ret = new JSObject();
         ret.put("available", hasBluetoothSupportValue() && isBluetoothEnabledValue());
         call.resolve(ret);
     }
 
+    /*
+     * Returns { enabled: boolean } — true if the Bluetooth adapter is on.
+     * Does not check hardware support separately.
+     */
     public void isBluetoothEnabled(PluginCall call) {
         JSObject ret = new JSObject();
         ret.put("enabled", isBluetoothEnabledValue());
         call.resolve(ret);
     }
 
+    /*
+     * Returns { supported: boolean } — checks for FEATURE_BLUETOOTH via PackageManager.
+     */
     public void hasBluetoothSupport(PluginCall call) {
         JSObject ret = new JSObject();
         ret.put("supported", hasBluetoothSupportValue());
         call.resolve(ret);
     }
 
+    /*
+     * Returns { supported: boolean } — checks for FEATURE_BLUETOOTH_LE.
+     * BLE is effectively present on all modern Android devices (5.0+),
+     * but the check is here for Cordova parity.
+     */
     public void hasBluetoothLESupport(PluginCall call) {
         PackageManager pm = plugin.getContext().getPackageManager();
         JSObject ret = new JSObject();
@@ -127,6 +165,10 @@ public class BluetoothModule {
         call.resolve(ret);
     }
 
+    /*
+     * Returns { supported: boolean } — checks if the adapter supports multi-advertisement,
+     * which is the prerequisite for running as a BLE peripheral.
+     */
     public void hasBluetoothLEPeripheralSupport(PluginCall call) {
         BluetoothAdapter bluetooth_adapter = BluetoothAdapter.getDefaultAdapter();
         JSObject ret = new JSObject();
@@ -134,6 +176,13 @@ public class BluetoothModule {
         call.resolve(ret);
     }
 
+    /*
+     * Enables or disables Bluetooth. Rejects on Android 13+ (API 33+) because
+     * BluetoothAdapter.enable/disable() were removed as public API.
+     * Also rejects if BLUETOOTH_CONNECT is not granted (required pre-13 as well).
+     *
+     * @param enable — boolean, passed as call param
+     */
     @SuppressLint("MissingPermission")
     public void setBluetoothState(PluginCall call) {
         boolean enable = call.getBoolean("enable", false);
@@ -177,6 +226,10 @@ public class BluetoothModule {
         }
     }
 
+    /*
+     * Returns { state: string } — one of: "powered_on", "powered_off",
+     * "powering_on", "powering_off", "unknown". Matches Cordova state strings.
+     */
     public void getBluetoothState(PluginCall call) {
         Log.d(TAG, "getBluetoothState called");
 
@@ -185,12 +238,23 @@ public class BluetoothModule {
         call.resolve(ret);
     }
 
+    /*
+     * Returns { statuses: { BLUETOOTH_ADVERTISE, BLUETOOTH_CONNECT, BLUETOOTH_SCAN } }.
+     * On API < 31 (pre-Android 12), all three map to the same legacy BLUETOOTH permission status.
+     * On API 31+, each is checked independently as a runtime permission.
+     */
     public void getBluetoothAuthorizationStatuses(PluginCall call) {
         JSObject ret = new JSObject();
         ret.put("statuses", getBluetoothAuthorizationStatusesValue());
         call.resolve(ret);
     }
 
+    /*
+     * Requests the Android 12+ Bluetooth runtime permissions.
+     * On API < 31, returns granted/denied based on the legacy BLUETOOTH manifest permission.
+     * Marks permissions as requested in SharedPreferences before triggering the dialog —
+     * this is needed to correctly distinguish "not_determined" from "denied" later.
+     */
     public void requestBluetoothAuthorization(PluginCall call) {
         if (Build.VERSION.SDK_INT < 31) {
             JSObject ret = new JSObject();
@@ -232,21 +296,38 @@ public class BluetoothModule {
         call.reject("Plugin does not support bluetooth permission requests");
     }
 
+    /*
+     * Called by DiagnosticPlugin's @PermissionCallback after the Bluetooth
+     * permission dialog resolves. Returns the combined authorization status.
+     */
     public void onBluetoothPermissionResult(PluginCall call) {
         JSObject ret = new JSObject();
         ret.put("status", getBluetoothAuthorizationStatusValue());
         call.resolve(ret);
     }
 
+    /*
+     * No-op on Android — CBCentralManager initialization is an iOS concept.
+     * Exists purely for Cordova API surface parity.
+     */
     public void ensureBluetoothManager(PluginCall call) {
         call.resolve();
     }
 
+    /*
+     * Returns { status: string } — the single combined Bluetooth authorization status.
+     * Aggregates across all three API 31+ permissions: if any is not_determined, returns
+     * that; if any is denied, returns denied; if any is denied_always, returns denied_always.
+     */
     public void getBluetoothAuthorizationStatus(PluginCall call) {
         JSObject ret = new JSObject();
         ret.put("status", getBluetoothAuthorizationStatusValue());
         call.resolve(ret);
     }
+
+    // -------------------------------------------------------------------------
+    // Internal helpers
+    // -------------------------------------------------------------------------
 
     private boolean isBluetoothEnabledValue() {
         BluetoothAdapter bluetooth_adapter = BluetoothAdapter.getDefaultAdapter();
@@ -258,6 +339,9 @@ public class BluetoothModule {
         return pm.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH);
     }
 
+    /*
+     * Maps BluetoothAdapter state integers to Cordova-compatible state strings.
+     */
     private String getBluetoothStateValue() {
         if (!hasBluetoothSupportValue()) {
             return BLUETOOTH_STATE_UNKNOWN;
@@ -282,6 +366,10 @@ public class BluetoothModule {
         }
     }
 
+    /*
+     * Deduplicates Bluetooth state change events — only fires the emitter
+     * if the state actually changed from the last known value.
+     */
     private void notifyBluetoothStateChange() {
         try {
             String new_state = getBluetoothStateValue();
@@ -294,22 +382,18 @@ public class BluetoothModule {
         }
     }
 
+    /*
+     * Builds the per-permission status map.
+     * Pre-API 31: all three names map to the same legacy BLUETOOTH permission state.
+     * API 31+: each permission is checked individually as a runtime permission.
+     */
     private JSObject getBluetoothAuthorizationStatusesValue() {
         JSObject statuses = new JSObject();
 
         if (Build.VERSION.SDK_INT >= 31) {
-            statuses.put(
-                "BLUETOOTH_ADVERTISE",
-                getPermissionStatusForManifestPermission(Manifest.permission.BLUETOOTH_ADVERTISE)
-            );
-            statuses.put(
-                "BLUETOOTH_CONNECT",
-                getPermissionStatusForManifestPermission(Manifest.permission.BLUETOOTH_CONNECT)
-            );
-            statuses.put(
-                "BLUETOOTH_SCAN",
-                getPermissionStatusForManifestPermission(Manifest.permission.BLUETOOTH_SCAN)
-            );
+            statuses.put("BLUETOOTH_ADVERTISE", getPermissionStatusForManifestPermission(Manifest.permission.BLUETOOTH_ADVERTISE));
+            statuses.put("BLUETOOTH_CONNECT", getPermissionStatusForManifestPermission(Manifest.permission.BLUETOOTH_CONNECT));
+            statuses.put("BLUETOOTH_SCAN", getPermissionStatusForManifestPermission(Manifest.permission.BLUETOOTH_SCAN));
         } else {
             boolean has_permission = hasLegacyBluetoothManifestPermission();
             String status = has_permission ? STATUS_GRANTED : STATUS_DENIED_ALWAYS;
@@ -322,6 +406,10 @@ public class BluetoothModule {
         return statuses;
     }
 
+    /*
+     * Aggregates the three per-permission statuses into a single value.
+     * Priority: not_determined > denied > denied_always > granted.
+     */
     private String getBluetoothAuthorizationStatusValue() {
         if (Build.VERSION.SDK_INT < 31) {
             return hasLegacyBluetoothManifestPermission() ? STATUS_GRANTED : STATUS_DENIED_ALWAYS;
@@ -344,19 +432,24 @@ public class BluetoothModule {
             }
         }
 
-        if (any_not_determined) {
-            return STATUS_NOT_DETERMINED;
-        }
-        if (any_denied) {
-            return STATUS_DENIED;
-        }
-        if (any_denied_always) {
-            return STATUS_DENIED_ALWAYS;
-        }
+        if (any_not_determined) return STATUS_NOT_DETERMINED;
+        if (any_denied) return STATUS_DENIED;
+        if (any_denied_always) return STATUS_DENIED_ALWAYS;
 
         return STATUS_GRANTED;
     }
 
+    /*
+     * Determines status for a single Android 12+ runtime Bluetooth permission.
+     *
+     * The "not_determined" vs "denied" vs "denied_always" distinction requires
+     * tracking whether we've ever asked — Android's shouldShowRequestPermissionRationale()
+     * alone can't tell us "never asked" on first check.
+     *
+     * - Not yet asked → not_determined
+     * - Asked, rationale should show (can ask again) → denied
+     * - Asked, rationale should NOT show (permanent deny) → denied_always
+     */
     private String getPermissionStatusForManifestPermission(String permission) {
         if (Build.VERSION.SDK_INT < 23) {
             return STATUS_GRANTED;
@@ -402,6 +495,10 @@ public class BluetoothModule {
         editor.apply();
     }
 
+    /*
+     * Pre-Android 12 fallback. Checks legacy BLUETOOTH or BLUETOOTH_ADMIN manifest permissions.
+     * These are install-time only — either the manifest declares them or it doesn't.
+     */
     private boolean hasLegacyBluetoothManifestPermission() {
         Context context = plugin.getContext();
 

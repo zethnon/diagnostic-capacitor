@@ -24,6 +24,16 @@ public class ExternalStorageModule {
         this.context = context;
     }
 
+    /*
+     * Returns { details: [ { path, filePath, canWrite, freeSpace, type } ] }.
+     * Only returns entries that are actually readable. Each entry includes
+     * both the root mount path and the app-scoped Android path.
+     *
+     * "type" is "application" if the path contains "/Android" (scoped storage),
+     * "root" otherwise (raw mount point).
+     *
+     * Matches Cordova's getExternalSdCardDetails() response shape exactly.
+     */
     public void getExternalSdCardDetails(PluginCall call) {
         try {
             String[] storage_directories = get_storage_directories();
@@ -54,6 +64,10 @@ public class ExternalStorageModule {
         }
     }
 
+    // -------------------------------------------------------------------------
+    // Internal helpers
+    // -------------------------------------------------------------------------
+
     private long get_free_space_in_bytes(String path) {
         try {
             StatFs stat = new StatFs(path);
@@ -63,6 +77,21 @@ public class ExternalStorageModule {
         }
     }
 
+    /*
+     * Discovers external storage directories using two strategies:
+     *
+     * Primary (API 19+): getExternalFilesDirs(null) returns all external storage paths
+     * including secondary SD cards. We check if each is actually removable storage
+     * (isExternalStorageRemovable on API 21+, or EnvironmentCompat.getStorageState below that).
+     * Both the root and app-scoped paths are included.
+     *
+     * Fallback (pre-API 19 or if primary returns nothing): parse 'mount' for /dev/block/vold entries.
+     * This is a best-effort shell approach — unreliable on newer Android but kept for old device parity.
+     *
+     * Post-processing on API 23+: filters results to only paths matching the SD card UUID format
+     * (e.g., "1234-5678") since that's the only reliable removable storage signature.
+     * On older API: filters by path names containing "ext" or "sdcard" as a heuristic.
+     */
     private String[] get_storage_directories() {
         List<String> results = new ArrayList<>();
 
@@ -70,9 +99,7 @@ public class ExternalStorageModule {
             File[] external_dirs = context.getExternalFilesDirs(null);
 
             for (File file : external_dirs) {
-                if (file == null) {
-                    continue;
-                }
+                if (file == null) continue;
 
                 String application_path = file.getPath();
                 String root_path = application_path.split("/Android")[0];
@@ -124,13 +151,16 @@ public class ExternalStorageModule {
             }
         }
 
+        // Filter to removable storage only
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            // API 23+: removable cards have a UUID-style path segment like "1A2B-3C4D"
             for (int i = 0; i < results.size(); i++) {
                 if (!results.get(i).toLowerCase().matches(".*[0-9a-f]{4}[-][0-9a-f]{4}.*")) {
                     results.remove(i--);
                 }
             }
         } else {
+            // Below API 23: fall back to path name heuristic
             for (int i = 0; i < results.size(); i++) {
                 String path = results.get(i).toLowerCase();
                 if (!path.contains("ext") && !path.contains("sdcard")) {

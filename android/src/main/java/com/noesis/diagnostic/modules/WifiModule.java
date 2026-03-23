@@ -18,6 +18,9 @@ public class WifiModule {
         this.context = plugin.getContext().getApplicationContext();
     }
 
+    /*
+     * Opens the system WiFi settings screen.
+     */
     public void switchToWifiSettings(PluginCall call) {
         try {
             Intent intent = new Intent(Settings.ACTION_WIFI_SETTINGS);
@@ -29,10 +32,14 @@ public class WifiModule {
         }
     }
 
+    /*
+     * Returns { available: boolean }.
+     * On Android, "available" means WiFi is enabled and the radio is on.
+     * This mirrors Cordova's isWifiAvailable() which also uses WifiManager.isWifiEnabled().
+     */
     public void isWifiAvailable(PluginCall call) {
         try {
             WifiManager wifi_manager = (WifiManager) context.getSystemService(Context.WIFI_SERVICE);
-
             boolean available = wifi_manager != null && wifi_manager.isWifiEnabled();
 
             JSObject result = new JSObject();
@@ -43,12 +50,16 @@ public class WifiModule {
         }
     }
 
+    /*
+     * Returns { enabled: boolean }.
+     * On Android, isWifiEnabled and isWifiAvailable check the same thing —
+     * WifiManager.isWifiEnabled(). The distinction exists on iOS (where
+     * "available" means connected to a network), but on Android we keep
+     * both methods for API parity and both use the same check.
+     */
     public void isWifiEnabled(PluginCall call) {
         try {
             WifiManager wifi_manager = (WifiManager) context.getSystemService(Context.WIFI_SERVICE);
-
-            // capacitor only change
-            // On Android this is effectively the same check used in cordova in isWifiAvailable().
             boolean enabled = wifi_manager != null && wifi_manager.isWifiEnabled();
 
             JSObject result = new JSObject();
@@ -59,6 +70,15 @@ public class WifiModule {
         }
     }
 
+    /*
+     * Enables or disables WiFi programmatically.
+     * This is only possible on Android 9 (Pie) and below — on Android 10+,
+     * WifiManager.setWifiEnabled() was restricted and apps can no longer toggle
+     * WiFi silently. We reject the call on those versions to match Cordova behavior,
+     * which also fails or silently does nothing there.
+     *
+     * @param enable — boolean, passed as call param
+     */
     public void setWifiState(PluginCall call) {
         try {
             boolean enable = call.getBoolean("enable", false);
@@ -69,10 +89,6 @@ public class WifiModule {
                 return;
             }
 
-            // Important platform limitation:
-            // cordova implementation uses WifiManager.setWifiEnabled().
-            // That API stopped being usable for normal third-party apps on Android 10+ 
-            // So exact legacy behavior can only be preserved on older Android versions.
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 call.reject("Changing WiFi state is not supported on Android 10+");
                 return;
@@ -81,16 +97,10 @@ public class WifiModule {
             boolean current_state = wifi_manager.isWifiEnabled();
             if (enable && !current_state) {
                 boolean success = wifi_manager.setWifiEnabled(true);
-                if (!success) {
-                    call.reject("Failed to enable WiFi");
-                    return;
-                }
+                if (!success) { call.reject("Failed to enable WiFi"); return; }
             } else if (!enable && current_state) {
                 boolean success = wifi_manager.setWifiEnabled(false);
-                if (!success) {
-                    call.reject("Failed to disable WiFi");
-                    return;
-                }
+                if (!success) { call.reject("Failed to disable WiFi"); return; }
             }
 
             call.resolve();

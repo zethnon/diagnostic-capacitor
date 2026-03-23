@@ -27,6 +27,8 @@ public class NotificationsModule {
     private static final String STATUS_DENIED_ALWAYS = "denied_always";
     private static final String STATUS_NOT_DETERMINED = "not_determined";
 
+    // Cordova returns these three type keys — we mirror them even though Android
+    // doesn't distinguish them individually the way iOS does.
     private static final String REMOTE_NOTIFICATIONS_ALERT = "alert";
     private static final String REMOTE_NOTIFICATIONS_SOUND = "sound";
     private static final String REMOTE_NOTIFICATIONS_BADGE = "badge";
@@ -37,12 +39,23 @@ public class NotificationsModule {
         this.plugin = plugin;
     }
 
+    /*
+     * Returns { enabled: boolean }.
+     * On Android 13+: enabled means notifications are on AND POST_NOTIFICATIONS is granted.
+     * Below Android 13: enabled just means notifications aren't blocked in the system settings.
+     */
     public void isRemoteNotificationsEnabled(PluginCall call) {
         JSObject ret = new JSObject();
         ret.put("enabled", isRemoteNotificationsEnabledValue());
         call.resolve(ret);
     }
 
+    /*
+     * Returns { types: { alert, sound, badge } } with "1" or "0" values.
+     * Android doesn't have per-type notification categories like iOS,
+     * so all three mirror the same enabled/disabled state.
+     * The "1"/"0" string format matches Cordova's response shape exactly.
+     */
     public void getRemoteNotificationTypes(PluginCall call) {
         boolean enabled = isRemoteNotificationsEnabledValue();
 
@@ -56,18 +69,34 @@ public class NotificationsModule {
         call.resolve(ret);
     }
 
+    /*
+     * Returns { registered: boolean }.
+     * On Android, "registered" is equivalent to notifications being enabled.
+     * There's no separate "register with APNs" step like on iOS.
+     */
     public void isRegisteredForRemoteNotifications(PluginCall call) {
         JSObject ret = new JSObject();
         ret.put("registered", isRemoteNotificationsEnabledValue());
         call.resolve(ret);
     }
 
+    /*
+     * Returns { status: string } — one of: "granted", "denied", "not_determined".
+     * Note: "denied_always" is not exposed here — we collapse it to "denied" for
+     * Cordova parity, since Cordova's iOS counterpart doesn't have a permanent-deny concept.
+     */
     public void getRemoteNotificationsAuthorizationStatus(PluginCall call) {
         JSObject ret = new JSObject();
         ret.put("status", getNormalizedNotificationsAuthorizationStatus());
         call.resolve(ret);
     }
 
+    /*
+     * Triggers the POST_NOTIFICATIONS runtime permission dialog on Android 13+.
+     * Below Android 13 there's no runtime permission for notifications —
+     * they're controlled only through the app's channel settings,
+     * so we resolve immediately with the current state.
+     */
     public void requestRemoteNotificationsAuthorization(PluginCall call) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
             onNotificationsPermissionNotRequired(call);
@@ -92,6 +121,11 @@ public class NotificationsModule {
         call.reject("Plugin does not support notifications permission requests");
     }
 
+    /*
+     * Opens the app's notification settings.
+     * Android 8+ (Oreo): direct to notification settings via ACTION_APP_NOTIFICATION_SETTINGS.
+     * Below Android 8: falls back to app details settings.
+     */
     public void switchToNotificationSettings(PluginCall call) {
         try {
             Context context = plugin.getContext();
@@ -113,18 +147,34 @@ public class NotificationsModule {
         }
     }
 
+    /*
+     * Called by DiagnosticPlugin's @PermissionCallback after the POST_NOTIFICATIONS dialog.
+     * Returns the current normalized status.
+     */
     public void onNotificationsPermissionResult(PluginCall call) {
         JSObject ret = new JSObject();
         ret.put("status", getNormalizedNotificationsAuthorizationStatus());
         call.resolve(ret);
     }
 
+    /*
+     * Path taken on Android < 13 where no runtime permission dialog is required.
+     * Returns current status based on system notification manager state.
+     */
     public void onNotificationsPermissionNotRequired(PluginCall call) {
         JSObject ret = new JSObject();
         ret.put("status", getNormalizedNotificationsAuthorizationStatus());
         call.resolve(ret);
     }
 
+    // -------------------------------------------------------------------------
+    // Internal helpers
+    // -------------------------------------------------------------------------
+
+    /*
+     * Full enabled check: notifications must be allowed in system settings,
+     * AND on Android 13+ the runtime permission must also be granted.
+     */
     private boolean isRemoteNotificationsEnabledValue() {
         if (!areAppNotificationsEnabled()) {
             return false;
@@ -145,6 +195,10 @@ public class NotificationsModule {
         }
     }
 
+    /*
+     * Maps the raw permission state to a simplified Cordova-compatible status.
+     * Collapses denied_always → denied since Cordova doesn't surface that distinction here.
+     */
     private String getNormalizedNotificationsAuthorizationStatus() {
         if (!areAppNotificationsEnabled()) {
             return STATUS_DENIED;
@@ -156,17 +210,17 @@ public class NotificationsModule {
 
         String raw_status = getRawPostNotificationsPermissionStatus();
 
-        if (STATUS_GRANTED.equals(raw_status)) {
-            return STATUS_GRANTED;
-        }
-
-        if (STATUS_NOT_DETERMINED.equals(raw_status)) {
-            return STATUS_NOT_DETERMINED;
-        }
+        if (STATUS_GRANTED.equals(raw_status)) return STATUS_GRANTED;
+        if (STATUS_NOT_DETERMINED.equals(raw_status)) return STATUS_NOT_DETERMINED;
 
         return STATUS_DENIED;
     }
 
+    /*
+     * Reads the actual POST_NOTIFICATIONS runtime permission state on Android 13+.
+     * Uses SharedPreferences to differentiate "never asked" (not_determined) from
+     * "asked and denied" before checking shouldShowRequestPermissionRationale().
+     */
     private String getRawPostNotificationsPermissionStatus() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
             return STATUS_GRANTED;

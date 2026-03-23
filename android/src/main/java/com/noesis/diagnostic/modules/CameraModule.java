@@ -29,6 +29,12 @@ public class CameraModule {
         this.context = context.getApplicationContext();
     }
 
+    /*
+     * Returns true if the device physically has a camera.
+     * Uses FEATURE_CAMERA_ANY on API 32+ (covers all cameras, front/back/external).
+     * Falls back to the older FEATURE_CAMERA on earlier versions.
+     * Also cross-checks Camera.getNumberOfCameras() for extra safety.
+     */
     public boolean isCameraPresent() {
         int number_of_cameras = Camera.getNumberOfCameras();
         PackageManager pm = context.getPackageManager();
@@ -41,6 +47,16 @@ public class CameraModule {
         return device_has_camera_flag && number_of_cameras > 0;
     }
 
+    /*
+     * Builds the permission array for a given storage requirement.
+     * Without storage: just CAMERA.
+     * With storage: CAMERA + the appropriate storage permissions for the current API level.
+     *
+     * Storage permissions differ by Android version:
+     * - API 34+ (Android 14): READ_MEDIA_IMAGES + READ_MEDIA_VIDEO + READ_MEDIA_VISUAL_USER_SELECTED
+     * - API 33 (Android 13): READ_MEDIA_IMAGES + READ_MEDIA_VIDEO
+     * - Below API 33: READ_EXTERNAL_STORAGE + WRITE_EXTERNAL_STORAGE
+     */
     public String[] getPermissions(boolean storage) {
         if (!storage) {
             return new String[]{ CAMERA_PERMISSION };
@@ -53,6 +69,11 @@ public class CameraModule {
         return permissions;
     }
 
+    /*
+     * Returns a map of { permissionName: status } for each relevant permission.
+     * The permission names use Cordova-compatible names (e.g., "CAMERA", "READ_MEDIA_IMAGES").
+     * Used by getCameraAuthorizationStatuses() on the plugin.
+     */
     public JSObject getCameraAuthorizationStatuses(boolean storage, Activity activity) {
         JSObject statuses = new JSObject();
 
@@ -64,6 +85,16 @@ public class CameraModule {
         return statuses;
     }
 
+    /*
+     * Returns a single combined authorization status string for camera (and optionally storage).
+     *
+     * If storage is false: returns the camera permission status directly.
+     * If storage is true: combines camera + storage status using priority logic:
+     *   DENIED_ALWAYS > LIMITED > DENIED > GRANTED > NOT_REQUESTED
+     *
+     * The LIMITED status is only possible on Android 14+ when the user selected
+     * "Allow limited access" for READ_MEDIA_VISUAL_USER_SELECTED.
+     */
     public String getCameraAuthorizationStatus(boolean storage, Activity activity) {
         JSONObject statuses = getCameraAuthorizationStatuses(storage, activity);
 
@@ -99,6 +130,12 @@ public class CameraModule {
         return combinePermissionStatuses(new String[]{ camera_status, storage_status });
     }
 
+    /*
+     * Persists which permissions have been requested to SharedPreferences.
+     * This is used later by getPermissionAuthorizationStatus() to distinguish
+     * "never asked" (NOT_REQUESTED) from "asked and denied" (DENIED/DENIED_ALWAYS).
+     * Must be called before triggering the permission dialog.
+     */
     public void markPermissionsRequested(String[] permissions) {
         SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
         SharedPreferences.Editor editor = prefs.edit();
@@ -110,6 +147,14 @@ public class CameraModule {
         editor.apply();
     }
 
+    // -------------------------------------------------------------------------
+    // Internal helpers
+    // -------------------------------------------------------------------------
+
+    /*
+     * Returns the correct storage permission array for the current API level.
+     * Android keeps changing the media permission model, so this handles all three eras.
+     */
     private String[] getStoragePermissions() {
         if (Build.VERSION.SDK_INT >= 34) {
             return new String[]{
@@ -131,27 +176,21 @@ public class CameraModule {
     }
 
     private String permissionToCordovaName(String permission) {
-        if (Manifest.permission.CAMERA.equals(permission)) {
-            return "CAMERA";
-        }
-        if (Manifest.permission.READ_MEDIA_IMAGES.equals(permission)) {
-            return "READ_MEDIA_IMAGES";
-        }
-        if (Manifest.permission.READ_MEDIA_VIDEO.equals(permission)) {
-            return "READ_MEDIA_VIDEO";
-        }
-        if (Build.VERSION.SDK_INT >= 34 && Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED.equals(permission)) {
-            return "READ_MEDIA_VISUAL_USER_SELECTED";
-        }
-        if (Manifest.permission.READ_EXTERNAL_STORAGE.equals(permission)) {
-            return "READ_EXTERNAL_STORAGE";
-        }
-        if (Manifest.permission.WRITE_EXTERNAL_STORAGE.equals(permission)) {
-            return "WRITE_EXTERNAL_STORAGE";
-        }
+        if (Manifest.permission.CAMERA.equals(permission)) return "CAMERA";
+        if (Manifest.permission.READ_MEDIA_IMAGES.equals(permission)) return "READ_MEDIA_IMAGES";
+        if (Manifest.permission.READ_MEDIA_VIDEO.equals(permission)) return "READ_MEDIA_VIDEO";
+        if (Build.VERSION.SDK_INT >= 34 && Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED.equals(permission)) return "READ_MEDIA_VISUAL_USER_SELECTED";
+        if (Manifest.permission.READ_EXTERNAL_STORAGE.equals(permission)) return "READ_EXTERNAL_STORAGE";
+        if (Manifest.permission.WRITE_EXTERNAL_STORAGE.equals(permission)) return "WRITE_EXTERNAL_STORAGE";
         return permission;
     }
 
+    /*
+     * Returns the authorization status for a single permission.
+     * Uses SharedPreferences to distinguish NOT_REQUESTED from DENIED,
+     * then uses shouldShowRequestPermissionRationale() to distinguish
+     * DENIED (can ask again) from DENIED_ALWAYS (permanent deny).
+     */
     private String getPermissionAuthorizationStatus(String permission, Activity activity) {
         if (ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED) {
             return "GRANTED";
@@ -179,13 +218,15 @@ public class CameraModule {
 
     private boolean anyStatusIs(String status, String[] statuses) {
         for (String s : statuses) {
-            if (status.equals(s)) {
-                return true;
-            }
+            if (status.equals(s)) return true;
         }
         return false;
     }
 
+    /*
+     * Combine all storage permission statuses into one.
+     * Extracts the values from the statuses map and delegates to the array overload.
+     */
     private String combinePermissionStatuses(JSONObject permission_statuses) {
         String[] storage_permissions = getStoragePermissions();
         String[] statuses = new String[storage_permissions.length];
@@ -197,17 +238,15 @@ public class CameraModule {
         return combinePermissionStatuses(statuses);
     }
 
+    /*
+     * Priority: DENIED_ALWAYS > LIMITED > DENIED > GRANTED > NOT_REQUESTED.
+     * Worst state wins — if any permission is permanently denied, the whole result is DENIED_ALWAYS.
+     */
     private String combinePermissionStatuses(String[] statuses) {
-        if (anyStatusIs("DENIED_ALWAYS", statuses)) {
-            return "DENIED_ALWAYS";
-        } else if (anyStatusIs("LIMITED", statuses)) {
-            return "LIMITED";
-        } else if (anyStatusIs("DENIED", statuses)) {
-            return "DENIED";
-        } else if (anyStatusIs("GRANTED", statuses)) {
-            return "GRANTED";
-        } else {
-            return "NOT_REQUESTED";
-        }
+        if (anyStatusIs("DENIED_ALWAYS", statuses)) return "DENIED_ALWAYS";
+        else if (anyStatusIs("LIMITED", statuses)) return "LIMITED";
+        else if (anyStatusIs("DENIED", statuses)) return "DENIED";
+        else if (anyStatusIs("GRANTED", statuses)) return "GRANTED";
+        else return "NOT_REQUESTED";
     }
 }

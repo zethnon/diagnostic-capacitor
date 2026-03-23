@@ -34,6 +34,12 @@ public class LocationModule {
         return plugin.getContext();
     }
 
+    /*
+     * Tracks whether the user has ever been asked for location.
+     * We persist this ourselves because Android doesn't give us a clean
+     * "never asked" vs "denied" distinction — that gap only shows up via
+     * shouldShowRequestPermissionRationale(), which is unreliable as a first-read.
+     */
     private boolean wasLocationEverAsked() {
         SharedPreferences sp = getContext().getSharedPreferences(PREFS, Context.MODE_PRIVATE);
         return sp.getBoolean(KEY_LOC_ASKED, false);
@@ -44,6 +50,13 @@ public class LocationModule {
         sp.edit().putBoolean(KEY_LOC_ASKED, true).apply();
     }
 
+    /*
+     * Returns the full authorization status string matching Cordova:
+     * "authorized_always", "authorized_when_in_use", "denied", "not_determined".
+     *
+     * Background location is only tracked on Android Q+. On older versions,
+     * foreground grant is the highest state we can reach.
+     */
     public void getLocationAuthorizationStatus(PluginCall call) {
         boolean fineGranted =
             ContextCompat.checkSelfPermission(getContext(), Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
@@ -73,15 +86,18 @@ public class LocationModule {
         call.resolve(ret);
     }
 
+    /*
+     * Returns { available: boolean }.
+     * Location is "available" only if both the system provider is on AND
+     * the app has at least foreground permission. Matches Cordova behavior.
+     */
     public void isLocationAvailable(PluginCall call) {
         boolean available = false;
 
         try {
             int mode = getLocationModeInt();
             boolean enabled = (mode != 0);
-
             boolean authorized = isLocationAuthorizedForeground();
-
             available = enabled && authorized;
         } catch (Exception ignored) {}
 
@@ -91,6 +107,10 @@ public class LocationModule {
         call.resolve(ret);
     }
 
+    /*
+     * Returns { enabled: boolean }.
+     * Checks only the system location provider — does not factor in app permission.
+     */
     public void isLocationEnabled(PluginCall call) {
         boolean enabled = false;
 
@@ -105,6 +125,10 @@ public class LocationModule {
         call.resolve(ret);
     }
 
+    /*
+     * Opens the app's detail settings page (not the global location settings).
+     * This lets the user grant/revoke location permission for this specific app.
+     */
     public void openLocationSettings(PluginCall call) {
         Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
         Uri uri = Uri.fromParts("package", getContext().getPackageName(), null);
@@ -120,6 +144,13 @@ public class LocationModule {
         call.resolve();
     }
 
+    /*
+     * Returns { mode: string } — one of: "high_accuracy", "device_only", "battery_saving", "location_off", "unknown".
+     *
+     * Pre-API 28 reads Settings.Secure.LOCATION_MODE directly.
+     * API 28+ that setting was deprecated — we reconstruct the mode by
+     * querying GPS and network providers from LocationManager.
+     */
     public void getLocationMode(PluginCall call) {
         String modeName = "unknown";
 
@@ -141,6 +172,10 @@ public class LocationModule {
         call.resolve(ret);
     }
 
+    /*
+     * Returns { enabled: boolean } — true if GPS provider is active.
+     * Mode 3 (high_accuracy) and mode 1 (device_only) both have GPS on.
+     */
     public void isGpsLocationEnabled(PluginCall call) {
         boolean enabled = false;
 
@@ -155,6 +190,10 @@ public class LocationModule {
         call.resolve(ret);
     }
 
+    /*
+     * Returns { enabled: boolean } — true if network/WiFi location provider is active.
+     * Mode 3 (high_accuracy) and mode 2 (battery_saving) both have network on.
+     */
     public void isNetworkLocationEnabled(PluginCall call) {
         boolean enabled = false;
 
@@ -169,15 +208,16 @@ public class LocationModule {
         call.resolve(ret);
     }
 
+    /*
+     * Returns { available: boolean } — GPS enabled AND app has foreground permission.
+     */
     public void isGpsLocationAvailable(PluginCall call) {
         boolean available = false;
 
         try {
             int mode = getLocationModeInt();
             boolean gpsEnabled = (mode == 3 || mode == 1);
-
             boolean authorized = isLocationAuthorizedForeground();
-
             available = gpsEnabled && authorized;
         } catch (Exception ignored) {}
 
@@ -187,15 +227,16 @@ public class LocationModule {
         call.resolve(ret);
     }
 
+    /*
+     * Returns { available: boolean } — network location enabled AND app has foreground permission.
+     */
     public void isNetworkLocationAvailable(PluginCall call) {
         boolean available = false;
 
         try {
             int mode = getLocationModeInt();
             boolean netEnabled = (mode == 3 || mode == 2);
-
             boolean authorized = isLocationAuthorizedForeground();
-
             available = netEnabled && authorized;
         } catch (Exception ignored) {}
 
@@ -205,6 +246,10 @@ public class LocationModule {
         call.resolve(ret);
     }
 
+    /*
+     * Opens the system's location source settings screen.
+     * Unlike openLocationSettings, this is the global toggle — not app-specific.
+     */
     public void switchToLocationSettings(PluginCall call) {
         Intent intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
 
@@ -219,6 +264,10 @@ public class LocationModule {
         call.resolve();
     }
 
+    /*
+     * Returns { available: boolean } — checks for a magnetic field sensor (hardware compass).
+     * Purely hardware capability check — no permission involved.
+     */
     public void isCompassAvailable(PluginCall call) {
         boolean available = false;
 
@@ -233,6 +282,10 @@ public class LocationModule {
         call.resolve(ret);
     }
 
+    /*
+     * Returns { value: boolean } — true if the app has either fine or coarse location granted.
+     * "Authorized" here means foreground only — background is not checked.
+     */
     public void isLocationAuthorized(PluginCall call) {
         boolean authorized = isLocationAuthorizedForeground();
         JSObject ret = new JSObject();
@@ -241,6 +294,11 @@ public class LocationModule {
         call.resolve(ret);
     }
 
+    /*
+     * Returns { value: "full" } always on Android.
+     * The reduced accuracy concept (iOS 14+) doesn't exist on Android —
+     * this is here purely for Cordova API surface parity.
+     */
     public void getLocationAccuracyAuthorization(PluginCall call) {
         JSObject ret = new JSObject();
         ret.put("value", "full");
@@ -248,6 +306,11 @@ public class LocationModule {
         call.resolve(ret);
     }
 
+    /*
+     * Returns { value: "full" } always on Android.
+     * Temporary accuracy downgrade/upgrade is an iOS 14+ concept.
+     * Android always runs at full accuracy if permission is granted.
+     */
     public void requestTemporaryFullAccuracyAuthorization(PluginCall call) {
         JSObject ret = new JSObject();
         ret.put("value", "full");
@@ -255,6 +318,12 @@ public class LocationModule {
         call.resolve(ret);
     }
 
+    /*
+     * Called after the Capacitor permission dialog closes for foreground location.
+     * On Android Q (10), we have to fire the background location prompt separately
+     * if "always" was requested — Android Q requires a second prompt for background.
+     * Post-Q, "always" requires the user to manually go to Settings.
+     */
     public void onLocationPermissionResult(PluginCall call) {
         boolean fineGranted =
             ContextCompat.checkSelfPermission(getContext(), Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
@@ -312,6 +381,10 @@ public class LocationModule {
         call.resolve(ret);
     }
 
+    /*
+     * Called after the background location permission prompt closes (Android Q only path).
+     * Returns "authorized_always" if background was granted, "authorized_when_in_use" otherwise.
+     */
     public void onBackgroundLocationPermissionResult(PluginCall call) {
         boolean backgroundGranted = false;
 
@@ -326,8 +399,17 @@ public class LocationModule {
         call.resolve(ret);
     }
 
-    // aux functions
+    // -------------------------------------------------------------------------
+    // Internal helpers
+    // -------------------------------------------------------------------------
 
+    /*
+     * Returns an integer representing the active location mode.
+     * Maps to: 0=off, 1=device_only (GPS), 2=battery_saving (network), 3=high_accuracy (GPS+network).
+     *
+     * Pre-API 28: reads Settings.Secure.LOCATION_MODE directly (deprecated but still works).
+     * API 28+: reconstructs mode by querying GPS and network providers from LocationManager.
+     */
     private int getLocationModeInt() throws Exception {
         if (Build.VERSION.SDK_INT < 28) {
             return Settings.Secure.getInt(
