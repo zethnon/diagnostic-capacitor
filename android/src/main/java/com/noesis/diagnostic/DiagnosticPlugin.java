@@ -500,13 +500,6 @@ public class DiagnosticPlugin extends Plugin implements BluetoothModule.Bluetoot
         notifyListeners("locationStateChange", data);
     }
  
-    @PluginMethod
-    public void enableDebug(PluginCall call) {
-        // Not an operation on Capacitor — use Logcat for native debug output, so will just resolve the call cleanly
-        call.resolve();
-    }
-
-
     // On Android this doesn't exist, so this is here just to make sure it resolves properly if ever called from OS    
     @PluginMethod
     public void isBackgroundRefreshAuthorized(PluginCall call) {
