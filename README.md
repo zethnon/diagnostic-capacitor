@@ -1,1220 +1,209 @@
-# @noesis/diagnostic-capacitor
+# diagnostic-capacitor
 
-Capacitor implementation of the Cordova Diagnostic plugin for checking device permissions and system settings.
+A Capacitor port of the [cordova-diagnostic-plugin](https://github.com/dpa99c/cordova-diagnostic-plugin) for OutSystems ODC mobile apps.
 
-## Install
+This plugin exposes device permission and hardware diagnostic APIs across Android and iOS, with behavior and return values that match the original Cordova plugin. It was built to support dual-stack operation — running alongside the Cordova plugin during an ODC migration — and resolves to the same status strings so existing app logic doesn't need to change.
+
+---
+
+## What this is
+
+OutSystems ODC apps can be built with either Cordova (MABS 11) or Capacitor (MABS 12+). The `DeviceDiagnostic` ODC Library uses the Cordova plugin's JavaScript API. When the build target switches to Capacitor, those Cordova calls stop working.
+
+This plugin bridges that gap. It exposes the same method names, parameters, and return values as the original Cordova plugin, but is built as a proper Capacitor plugin so it works in Capacitor builds.
+
+**Cordova behavior is the source of truth.** If something differs from Cordova's output, it's a bug.
+
+---
+
+## Platform support
+
+| Module | Android | iOS |
+|---|---|---|
+| Location | ✅ | ✅ |
+| Bluetooth | ✅ | ✅ |
+| Camera | ✅ | ✅ |
+| Notifications | ✅ | ✅ |
+| WiFi | ✅ | ✅ |
+| External Storage | ✅ | — |
+| NFC | ✅ | — (no NFC API on iOS) |
+| Microphone | — | ✅ |
+| Motion | — | ✅ |
+| Reminders | — | ✅ |
+| Calendar | — | ✅ |
+| Contacts | — | ✅ |
+
+Modules listed as `—` return `not_implemented` on that platform, matching the original Cordova plugin's behavior.
+
+---
+
+## Architecture
+
+Single plugin, thin bridge, feature modules carry the logic.
+
+```
+DiagnosticPlugin (bridge)
+├── LocationModule
+├── BluetoothModule
+├── CameraModule
+├── NotificationsModule
+├── WifiModule
+├── ExternalStorageModule   (Android only)
+├── NfcModule               (Android only)
+├── MicrophoneModule        (iOS only)
+├── MotionModule            (iOS only)
+├── RemindersModule         (iOS only)
+├── CalendarModule          (iOS only)
+└── ContactsModule          (iOS only)
+```
+
+On iOS, `DiagnosticPlugin.swift` is a pure passthrough — every `@objc func` is a one-liner delegating to the relevant module. All logic lives in the modules.
+
+On Android, `DiagnosticPlugin.java` also delegates to modules, but additionally handles `@PermissionCallback` methods since those must live on the plugin class itself (Capacitor requirement).
+
+### iOS SPM target split
+
+SPM doesn't allow mixed ObjC/Swift in a single target. The plugin uses two targets:
+
+- `DiagnosticPluginObjC` — contains `Plugin.m` (the ObjC bridge registrations)
+- `DiagnosticPlugin` — contains all Swift source files
+
+Both are declared in `Package.swift` and linked together. The consuming app's `CapApp-SPM.swift` imports `DiagnosticPlugin`.
+
+---
+
+## Installation (ODC Library)
+
+This plugin is not published to npm. Reference it directly from GitHub in the ODC Library's Extensibility Configuration:
+
+```json
+{
+  "buildConfigurations": {
+    "cordova": {
+      "source": {
+        "npm": "https://github.com/dpa99c/cordova-diagnostic-plugin.git#5.0.2"
+      }
+    },
+    "capacitor": {
+      "source": {
+        "npm": "https://github.com/zethnon/diagnostic-capacitor.git#v1.0.2"
+      }
+    }
+  },
+  "pluginConfigurations": {
+    "permissions": {
+      "ios": {
+        "NSCameraUsageDescription": { "description": "This app requires camera access." },
+        "NSPhotoLibraryAddUsageDescription": { "description": "This app requires access to save photos." },
+        "NSPhotoLibraryUsageDescription": { "description": "This app requires access to your photo library." },
+        "NSMicrophoneUsageDescription": { "description": "App requires microphone access." },
+        "NSLocationWhenInUseUsageDescription": { "description": "Diagnostics needs location access to report device location capability and status." },
+        "NSLocationAlwaysAndWhenInUseUsageDescription": { "description": "Diagnostics needs location access, even in the background." },
+        "NSMotionUsageDescription": { "description": "App requires motion access." },
+        "NSRemindersUsageDescription": { "description": "App requires reminders access." },
+        "NSCalendarsUsageDescription": { "description": "This app requires access to calendar events." },
+        "NSContactsUsageDescription": { "description": "This app requires access to contacts." },
+        "NSBluetoothAlwaysUsageDescription": { "description": "App requires Bluetooth access." },
+        "NSLocalNetworkUsageDescription": { "description": "App requires local network access." }
+      }
+    }
+  },
+  "plugin": {
+    "url": "https://github.com/dpa99c/cordova-diagnostic-plugin.git#5.0.2",
+    "variables": [
+      { "name": "Permissions", "value": "['android.permission.INTERNET','android.permission.ACCESS_WIFI_STATE','android.permission.ACCESS_FINE_LOCATION','android.permission.ACCESS_COARSE_LOCATION','android.permission.ACCESS_BACKGROUND_LOCATION','android.permission.BLUETOOTH','android.permission.BLUETOOTH_ADMIN','android.permission.BLUETOOTH_SCAN','android.permission.BLUETOOTH_CONNECT','android.permission.BLUETOOTH_ADVERTISE','android.permission.CHANGE_WIFI_STATE','android.permission.READ_CALENDAR','android.permission.WRITE_CALENDAR','android.permission.CAMERA','android.permission.READ_CONTACTS','android.permission.WRITE_CONTACTS','android.permission.RECORD_AUDIO','android.permission.READ_EXTERNAL_STORAGE','android.permission.WRITE_EXTERNAL_STORAGE']" }
+    ]
+  }
+}
+```
+
+The `plugin` block keeps the Cordova plugin active for MABS 11 backward compatibility. MABS 12+ will use the `buildConfigurations.capacitor` block instead.
+
+Android permissions for the Capacitor plugin don't need to be listed in `pluginConfigurations` — they're declared in the plugin's own `AndroidManifest.xml` and merged automatically by Gradle during a Capacitor build.
+
+---
+
+## JavaScript routing (dual-stack)
+
+In each ODC client action that calls the diagnostic plugin, route based on runtime:
+
+```javascript
+if (typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform()) {
+    // Capacitor path
+    const result = await Capacitor.Plugins.DiagnosticPlugin.methodName(params);
+} else {
+    // Cordova path — unchanged
+    cordova.plugins.diagnostic.methodName(params, successCallback, errorCallback);
+}
+```
+
+---
+
+## Return value conventions
+
+Status strings match the original Cordova plugin exactly:
+
+**Authorization / permission status:**
+`not_determined`, `denied`, `denied_always`, `granted`, `authorized_when_in_use`, `authorized_always`, `limited`, `not_requested`
+
+**Bluetooth / NFC state:**
+`powered_on`, `powered_off`, `powering_on`, `powering_off`, `unknown`
+
+**Location mode (Android):**
+`high_accuracy`, `device_only`, `battery_saving`, `location_off`, `unknown`
+
+**Location accuracy (iOS):**
+`full`, `reduced`
+
+---
+
+## Android-specific notes
+
+**Bluetooth permissions (Android 12+):** The three runtime permissions (`BLUETOOTH_SCAN`, `BLUETOOTH_CONNECT`, `BLUETOOTH_ADVERTISE`) are tracked individually in SharedPreferences under the `DiagnosticBluetoothPrefs` key. This is required to correctly distinguish `not_determined` from `denied` before the user has been prompted.
+
+**Camera storage (Android 13/14):** The media permission model changed across API levels. Android 13 uses `READ_MEDIA_IMAGES`/`READ_MEDIA_VIDEO`. Android 14 adds `READ_MEDIA_VISUAL_USER_SELECTED` which maps to a `LIMITED` status when the user selects specific photos.
+
+**WiFi state toggle:** `setWifiState()` is only functional on Android 9 and below. Android 10+ restricts `WifiManager.setWifiEnabled()` for third-party apps — the call will reject on those versions. This matches Cordova behavior.
+
+**Bluetooth state toggle:** `setBluetoothState()` is only functional on Android 12 and below. `BluetoothAdapter.enable/disable()` were removed as a public API in Android 13. The call rejects on Android 13+.
+
+---
+
+## iOS-specific notes
+
+**Local network permission:** iOS doesn't have a direct API to read local network permission status. The probe works by attempting to publish a Bonjour service and observing whether it succeeds or gets blocked with `EPERM`. Results are cached to UserDefaults. If the probe times out (default 2 seconds), `indeterminate` (-2) is returned.
+
+**Motion permission:** `requestMotionAuthorization()` can only be called once per app installation. Calling it a second time rejects immediately — iOS won't re-prompt. Use `getMotionAuthorizationStatus()` to check status without triggering a prompt.
+
+**Bluetooth authorization:** Instantiating `CBCentralManager` triggers the Bluetooth usage prompt on iOS 13+. The plugin defers this until `ensureBluetoothManager()` or `requestBluetoothAuthorization()` is called.
+
+**Location accuracy (iOS 14+):** `getLocationAccuracyAuthorization()` returns `"full"` or `"reduced"`. `requestTemporaryFullAccuracyAuthorization()` requires a purpose key matching an entry in `NSLocationTemporaryUsageDescriptionDictionary` in `Info.plist`.
+
+**Notifications (iOS 16+):** `switchToNotificationSettings()` uses `UIApplication.openNotificationSettingsURLString` on iOS 16+ for a direct link to the notification settings page. Falls back to the generic settings URL on older versions.
+
+**Calendar write-only access (iOS 17+):** `.writeOnly` is treated as `"granted"` in CalendarModule (matches Cordova behavior). In RemindersModule, `.writeOnly` is treated as `"denied"` — write-only isn't sufficient for reminders access.
+
+---
+
+## Development workflow
 
 ```bash
-npm install @noesis/diagnostic-capacitor
-npx cap sync
-```
-
-## API
-
-<docgen-index>
-
-* [`getLocationAuthorizationStatus()`](#getlocationauthorizationstatus)
-* [`requestLocationAuthorization(...)`](#requestlocationauthorization)
-* [`isLocationEnabled()`](#islocationenabled)
-* [`openLocationSettings()`](#openlocationsettings)
-* [`isLocationAvailable()`](#islocationavailable)
-* [`getLocationMode()`](#getlocationmode)
-* [`isGpsLocationEnabled()`](#isgpslocationenabled)
-* [`isNetworkLocationEnabled()`](#isnetworklocationenabled)
-* [`isGpsLocationAvailable()`](#isgpslocationavailable)
-* [`isNetworkLocationAvailable()`](#isnetworklocationavailable)
-* [`switchToLocationSettings()`](#switchtolocationsettings)
-* [`isCompassAvailable()`](#iscompassavailable)
-* [`isLocationAuthorized()`](#islocationauthorized)
-* [`getLocationAccuracyAuthorization()`](#getlocationaccuracyauthorization)
-* [`requestTemporaryFullAccuracyAuthorization(...)`](#requesttemporaryfullaccuracyauthorization)
-* [`switchToBluetoothSettings()`](#switchtobluetoothsettings)
-* [`isBluetoothAvailable()`](#isbluetoothavailable)
-* [`isBluetoothEnabled()`](#isbluetoothenabled)
-* [`hasBluetoothSupport()`](#hasbluetoothsupport)
-* [`hasBluetoothLESupport()`](#hasbluetoothlesupport)
-* [`hasBluetoothLEPeripheralSupport()`](#hasbluetoothleperipheralsupport)
-* [`setBluetoothState(...)`](#setbluetoothstate)
-* [`getBluetoothState()`](#getbluetoothstate)
-* [`getBluetoothAuthorizationStatuses()`](#getbluetoothauthorizationstatuses)
-* [`requestBluetoothAuthorization(...)`](#requestbluetoothauthorization)
-* [`ensureBluetoothManager()`](#ensurebluetoothmanager)
-* [`getBluetoothAuthorizationStatus()`](#getbluetoothauthorizationstatus)
-* [`addListener('bluetoothStateChange', ...)`](#addlistenerbluetoothstatechange-)
-* [`removeAllListeners()`](#removealllisteners)
-* [`isCameraPresent()`](#iscamerapresent)
-* [`requestCameraAuthorization(...)`](#requestcameraauthorization)
-* [`getCameraAuthorizationStatus(...)`](#getcameraauthorizationstatus)
-* [`getCameraAuthorizationStatuses(...)`](#getcameraauthorizationstatuses)
-* [`isRemoteNotificationsEnabled()`](#isremotenotificationsenabled)
-* [`getRemoteNotificationTypes()`](#getremotenotificationtypes)
-* [`isRegisteredForRemoteNotifications()`](#isregisteredforremotenotifications)
-* [`getRemoteNotificationsAuthorizationStatus()`](#getremotenotificationsauthorizationstatus)
-* [`requestRemoteNotificationsAuthorization(...)`](#requestremotenotificationsauthorization)
-* [`switchToNotificationSettings()`](#switchtonotificationsettings)
-* [`switchToWifiSettings()`](#switchtowifisettings)
-* [`isWifiAvailable()`](#iswifiavailable)
-* [`isWifiEnabled()`](#iswifienabled)
-* [`setWifiState(...)`](#setwifistate)
-* [`requestLocalNetworkAuthorization(...)`](#requestlocalnetworkauthorization)
-* [`getLocalNetworkAuthorizationStatus(...)`](#getlocalnetworkauthorizationstatus)
-* [`getExternalSdCardDetails()`](#getexternalsdcarddetails)
-* [`isMicrophoneAuthorized()`](#ismicrophoneauthorized)
-* [`getMicrophoneAuthorizationStatus()`](#getmicrophoneauthorizationstatus)
-* [`requestMicrophoneAuthorization()`](#requestmicrophoneauthorization)
-* [`isMotionAvailable()`](#ismotionavailable)
-* [`isMotionRequestOutcomeAvailable()`](#ismotionrequestoutcomeavailable)
-* [`getMotionAuthorizationStatus()`](#getmotionauthorizationstatus)
-* [`requestMotionAuthorization()`](#requestmotionauthorization)
-* [`getRemindersAuthorizationStatus()`](#getremindersauthorizationstatus)
-* [`isRemindersAuthorized()`](#isremindersauthorized)
-* [`requestRemindersAuthorization()`](#requestremindersauthorization)
-* [`switchToNFCSettings()`](#switchtonfcsettings)
-* [`isNFCPresent()`](#isnfcpresent)
-* [`isNFCEnabled()`](#isnfcenabled)
-* [`isNFCAvailable()`](#isnfcavailable)
-* [`addListener('nfcStateChange', ...)`](#addlistenernfcstatechange-)
-* [`getCalendarAuthorizationStatus()`](#getcalendarauthorizationstatus)
-* [`isCalendarAuthorized()`](#iscalendarauthorized)
-* [`requestCalendarAuthorization()`](#requestcalendarauthorization)
-* [`getAddressBookAuthorizationStatus()`](#getaddressbookauthorizationstatus)
-* [`isAddressBookAuthorized()`](#isaddressbookauthorized)
-* [`requestAddressBookAuthorization()`](#requestaddressbookauthorization)
-* [Interfaces](#interfaces)
-* [Type Aliases](#type-aliases)
-
-</docgen-index>
-
-<docgen-api>
-<!--Update the source file JSDoc comments and rerun docgen to update the docs below-->
-
-### getLocationAuthorizationStatus()
-
-```typescript
-getLocationAuthorizationStatus() => Promise<{ status: string; }>
-```
-
-Returns the current location authorization status (Cordova parity strings).
-
-**Returns:** <code>Promise&lt;{ status: string; }&gt;</code>
-
---------------------
-
-
-### requestLocationAuthorization(...)
-
-```typescript
-requestLocationAuthorization(options?: { mode?: "always" | "when_in_use" | undefined; } | undefined) => Promise<{ status: string; }>
-```
-
-Requests location authorization.
-`mode` maps to Cordova semantics: 'always' | 'when_in_use'
-
-| Param         | Type                                               |
-| ------------- | -------------------------------------------------- |
-| **`options`** | <code>{ mode?: 'always' \| 'when_in_use'; }</code> |
-
-**Returns:** <code>Promise&lt;{ status: string; }&gt;</code>
-
---------------------
-
-
-### isLocationEnabled()
-
-```typescript
-isLocationEnabled() => Promise<{ enabled: boolean; }>
-```
-
-True if location services are enabled at OS level.
-
-**Returns:** <code>Promise&lt;{ enabled: boolean; }&gt;</code>
-
---------------------
-
-
-### openLocationSettings()
-
-```typescript
-openLocationSettings() => Promise<void>
-```
-
-Opens the OS-level Location settings screen (best-effort per platform).
-
---------------------
-
-
-### isLocationAvailable()
-
-```typescript
-isLocationAvailable() => Promise<{ available: boolean; }>
-```
-
-True if location is available for use (authorization + services enabled, per Cordova behavior).
-
-**Returns:** <code>Promise&lt;{ available: boolean; }&gt;</code>
-
---------------------
-
-
-### getLocationMode()
-
-```typescript
-getLocationMode() => Promise<{ mode: string; }>
-```
-
-Returns the current location mode (platform-specific string, Cordova parity).
-
-**Returns:** <code>Promise&lt;{ mode: string; }&gt;</code>
-
---------------------
-
-
-### isGpsLocationEnabled()
-
-```typescript
-isGpsLocationEnabled() => Promise<{ enabled: boolean; }>
-```
-
-True if GPS provider is enabled (Android-specific; iOS returns best-effort parity).
-
-**Returns:** <code>Promise&lt;{ enabled: boolean; }&gt;</code>
-
---------------------
-
-
-### isNetworkLocationEnabled()
-
-```typescript
-isNetworkLocationEnabled() => Promise<{ enabled: boolean; }>
-```
-
-True if Network provider is enabled (Android-specific; iOS returns best-effort parity).
-
-**Returns:** <code>Promise&lt;{ enabled: boolean; }&gt;</code>
-
---------------------
-
-
-### isGpsLocationAvailable()
-
-```typescript
-isGpsLocationAvailable() => Promise<{ available: boolean; }>
-```
-
-True if GPS location is available (Android-specific; iOS returns best-effort parity).
-
-**Returns:** <code>Promise&lt;{ available: boolean; }&gt;</code>
-
---------------------
-
-
-### isNetworkLocationAvailable()
-
-```typescript
-isNetworkLocationAvailable() => Promise<{ available: boolean; }>
-```
-
-True if Network location is available (Android-specific; iOS returns best-effort parity).
-
-**Returns:** <code>Promise&lt;{ available: boolean; }&gt;</code>
-
---------------------
-
-
-### switchToLocationSettings()
-
-```typescript
-switchToLocationSettings() => Promise<void>
-```
-
-Opens the OS-level Location settings screen (Cordova-style method naming).
-
---------------------
-
-
-### isCompassAvailable()
-
-```typescript
-isCompassAvailable() => Promise<{ available: boolean; }>
-```
-
-True if device has a compass / magnetometer available.
-
-**Returns:** <code>Promise&lt;{ available: boolean; }&gt;</code>
-
---------------------
-
-
-### isLocationAuthorized()
-
-```typescript
-isLocationAuthorized() => Promise<{ value: boolean; }>
-```
-
-True if app is authorized to use location services (authorization only).
-
-**Returns:** <code>Promise&lt;{ value: boolean; }&gt;</code>
-
---------------------
-
-
-### getLocationAccuracyAuthorization()
-
-```typescript
-getLocationAccuracyAuthorization() => Promise<{ value: 'full' | 'reduced'; }>
-```
-
-iOS-only accuracy authorization.
-Returns "full" or "reduced" (iOS 14+); other platforms default to "full".
-
-**Returns:** <code>Promise&lt;{ value: 'full' | 'reduced'; }&gt;</code>
-
---------------------
-
-
-### requestTemporaryFullAccuracyAuthorization(...)
-
-```typescript
-requestTemporaryFullAccuracyAuthorization(options: { purpose: string; }) => Promise<{ value: 'full' | 'reduced'; }>
-```
-
-iOS-only temporary full accuracy request (iOS 14+).
-`purpose` must match a key in Info.plist (NSLocationTemporaryUsageDescriptionDictionary).
-
-| Param         | Type                              |
-| ------------- | --------------------------------- |
-| **`options`** | <code>{ purpose: string; }</code> |
-
-**Returns:** <code>Promise&lt;{ value: 'full' | 'reduced'; }&gt;</code>
-
---------------------
-
-
-### switchToBluetoothSettings()
-
-```typescript
-switchToBluetoothSettings() => Promise<void>
-```
-
-Opens OS Bluetooth settings screen.
-
---------------------
-
-
-### isBluetoothAvailable()
-
-```typescript
-isBluetoothAvailable() => Promise<{ available: boolean; }>
-```
-
-True if device supports Bluetooth and Bluetooth is enabled.
-
-**Returns:** <code>Promise&lt;{ available: boolean; }&gt;</code>
-
---------------------
-
-
-### isBluetoothEnabled()
-
-```typescript
-isBluetoothEnabled() => Promise<{ enabled: boolean; }>
-```
-
-True if Bluetooth adapter exists and is enabled.
-
-**Returns:** <code>Promise&lt;{ enabled: boolean; }&gt;</code>
-
---------------------
-
-
-### hasBluetoothSupport()
-
-```typescript
-hasBluetoothSupport() => Promise<{ supported: boolean; }>
-```
-
-True if device has FEATURE_BLUETOOTH.
-
-**Returns:** <code>Promise&lt;{ supported: boolean; }&gt;</code>
-
---------------------
-
-
-### hasBluetoothLESupport()
-
-```typescript
-hasBluetoothLESupport() => Promise<{ supported: boolean; }>
-```
-
-True if device has FEATURE_BLUETOOTH_LE.
-
-**Returns:** <code>Promise&lt;{ supported: boolean; }&gt;</code>
-
---------------------
-
-
-### hasBluetoothLEPeripheralSupport()
-
-```typescript
-hasBluetoothLEPeripheralSupport() => Promise<{ supported: boolean; }>
-```
-
-True if adapter supports multiple advertisement (peripheral mode).
-
-**Returns:** <code>Promise&lt;{ supported: boolean; }&gt;</code>
-
---------------------
-
-
-### setBluetoothState(...)
-
-```typescript
-setBluetoothState(options: { enable: boolean; }) => Promise<void>
-```
-
-Attempts to enable/disable Bluetooth.
-Android 13+ rejects (matches Cordova behavior).
-
-| Param         | Type                              |
-| ------------- | --------------------------------- |
-| **`options`** | <code>{ enable: boolean; }</code> |
-
---------------------
-
-
-### getBluetoothState()
-
-```typescript
-getBluetoothState() => Promise<{ state: string; }>
-```
-
-Returns Bluetooth hardware state string (Cordova parity):
-Android: unknown|powered_on|powered_off|powering_on|powering_off
-iOS: powered_on|powered_off|unauthorized|unsupported|resetting|unknown
-
-**Returns:** <code>Promise&lt;{ state: string; }&gt;</code>
-
---------------------
-
-
-### getBluetoothAuthorizationStatuses()
-
-```typescript
-getBluetoothAuthorizationStatuses() => Promise<{ statuses: Record<string, string>; }>
-```
-
-Android: returns per-permission status map for BLUETOOTH_* runtime permissions (SDK&gt;=31).
-iOS: returns a single `authorization` string.
-
-**Returns:** <code>Promise&lt;{ statuses: <a href="#record">Record</a>&lt;string, string&gt;; }&gt;</code>
-
---------------------
-
-
-### requestBluetoothAuthorization(...)
-
-```typescript
-requestBluetoothAuthorization(options?: { permissions?: ("BLUETOOTH_ADVERTISE" | "BLUETOOTH_CONNECT" | "BLUETOOTH_SCAN")[] | undefined; } | undefined) => Promise<{ status: string; }>
-```
-
-Android: request BLUETOOTH_* permissions (optionally specify which).
-iOS: triggers permission prompt if not determined.
-
-| Param         | Type                                                                                                 |
-| ------------- | ---------------------------------------------------------------------------------------------------- |
-| **`options`** | <code>{ permissions?: ('BLUETOOTH_ADVERTISE' \| 'BLUETOOTH_CONNECT' \| 'BLUETOOTH_SCAN')[]; }</code> |
-
-**Returns:** <code>Promise&lt;{ status: string; }&gt;</code>
-
---------------------
-
-
-### ensureBluetoothManager()
-
-```typescript
-ensureBluetoothManager() => Promise<void>
-```
-
-iOS-only explicit init of Bluetooth manager (parity with Cordova).
-Android is a no-op.
-
---------------------
-
-
-### getBluetoothAuthorizationStatus()
-
-```typescript
-getBluetoothAuthorizationStatus() => Promise<{ status: string; }>
-```
-
-iOS-only single authorization status string (granted|denied|not_determined).
-Android returns derived status (granted if all requested perms granted, otherwise denied/denied_always).
-
-**Returns:** <code>Promise&lt;{ status: string; }&gt;</code>
-
---------------------
-
-
-### addListener('bluetoothStateChange', ...)
-
-```typescript
-addListener(eventName: 'bluetoothStateChange', listenerFunc: (event: { state: string; }) => void) => Promise<PluginListenerHandle>
-```
-
-Bluetooth state change event. Fired when underlying OS BT state changes.
-
-| Param              | Type                                                |
-| ------------------ | --------------------------------------------------- |
-| **`eventName`**    | <code>'bluetoothStateChange'</code>                 |
-| **`listenerFunc`** | <code>(event: { state: string; }) =&gt; void</code> |
-
-**Returns:** <code>Promise&lt;<a href="#pluginlistenerhandle">PluginListenerHandle</a>&gt;</code>
-
---------------------
-
-
-### removeAllListeners()
-
-```typescript
-removeAllListeners() => Promise<void>
-```
-
---------------------
-
-
-### isCameraPresent()
-
-```typescript
-isCameraPresent() => Promise<{ present: boolean; }>
-```
-
-True if device has a camera.
-
-**Returns:** <code>Promise&lt;{ present: boolean; }&gt;</code>
-
---------------------
-
-
-### requestCameraAuthorization(...)
-
-```typescript
-requestCameraAuthorization(options?: { storage?: boolean | undefined; } | undefined) => Promise<{ status: string; }>
-```
-
-Requests camera authorization.
-If `storage` is true, also requests storage/media library permissions needed by Cordova parity.
-
-| Param         | Type                                |
-| ------------- | ----------------------------------- |
-| **`options`** | <code>{ storage?: boolean; }</code> |
-
-**Returns:** <code>Promise&lt;{ status: string; }&gt;</code>
-
---------------------
-
-
-### getCameraAuthorizationStatus(...)
-
-```typescript
-getCameraAuthorizationStatus(options?: { storage?: boolean | undefined; } | undefined) => Promise<{ status: string; }>
-```
-
-Returns combined camera authorization status.
-If `storage` is true, combines camera + storage/media permissions using Cordova parity.
-
-| Param         | Type                                |
-| ------------- | ----------------------------------- |
-| **`options`** | <code>{ storage?: boolean; }</code> |
-
-**Returns:** <code>Promise&lt;{ status: string; }&gt;</code>
-
---------------------
-
-
-### getCameraAuthorizationStatuses(...)
-
-```typescript
-getCameraAuthorizationStatuses(options?: { storage?: boolean | undefined; } | undefined) => Promise<{ statuses: Record<string, string>; }>
-```
-
-Returns raw camera/media permission statuses map.
-
-| Param         | Type                                |
-| ------------- | ----------------------------------- |
-| **`options`** | <code>{ storage?: boolean; }</code> |
-
-**Returns:** <code>Promise&lt;{ statuses: <a href="#record">Record</a>&lt;string, string&gt;; }&gt;</code>
-
---------------------
-
-
-### isRemoteNotificationsEnabled()
-
-```typescript
-isRemoteNotificationsEnabled() => Promise<{ enabled: boolean; }>
-```
-
-True if remote/push notifications are effectively enabled for the app.
-
-**Returns:** <code>Promise&lt;{ enabled: boolean; }&gt;</code>
-
---------------------
-
-
-### getRemoteNotificationTypes()
-
-```typescript
-getRemoteNotificationTypes() => Promise<{ types: Record<string, '0' | '1'>; }>
-```
-
-Returns Cordova-style notification types map.
-iOS returns actual alert/sound/badge values.
-Android returns best-effort parity using app-level notification enablement.
-
-**Returns:** <code>Promise&lt;{ types: <a href="#record">Record</a>&lt;string, '0' | '1'&gt;; }&gt;</code>
-
---------------------
-
-
-### isRegisteredForRemoteNotifications()
-
-```typescript
-isRegisteredForRemoteNotifications() => Promise<{ registered: boolean; }>
-```
-
-iOS exposes APNS registration state directly.
-Android returns best-effort parity.
-
-**Returns:** <code>Promise&lt;{ registered: boolean; }&gt;</code>
-
---------------------
-
-
-### getRemoteNotificationsAuthorizationStatus()
-
-```typescript
-getRemoteNotificationsAuthorizationStatus() => Promise<{ status: string; }>
-```
-
-Returns notification authorization status.
-
-**Returns:** <code>Promise&lt;{ status: string; }&gt;</code>
-
---------------------
-
-
-### requestRemoteNotificationsAuthorization(...)
-
-```typescript
-requestRemoteNotificationsAuthorization(options?: { types?: ("alert" | "sound" | "badge")[] | undefined; omitRegistration?: boolean | undefined; } | undefined) => Promise<{ status: string; }>
-```
+# After changing plugin source
+cd diagnostic-capacitor
+npm run build
 
-Requests remote notification authorization.
-
-| Param         | Type                                                                                    |
-| ------------- | --------------------------------------------------------------------------------------- |
-| **`options`** | <code>{ types?: ('alert' \| 'sound' \| 'badge')[]; omitRegistration?: boolean; }</code> |
-
-**Returns:** <code>Promise&lt;{ status: string; }&gt;</code>
-
---------------------
-
-
-### switchToNotificationSettings()
-
-```typescript
-switchToNotificationSettings() => Promise<void>
-```
-
-Opens the app notification settings screen.
-
---------------------
-
-
-### switchToWifiSettings()
-
-```typescript
-switchToWifiSettings() => Promise<void>
-```
-
-Opens the OS Wi-Fi settings screen.
-
---------------------
-
-
-### isWifiAvailable()
-
-```typescript
-isWifiAvailable() => Promise<{ available: boolean; }>
-```
-
-Cordova-parity check for Wi-Fi availability.
-On Android this maps to WifiManager.isWifiEnabled().
-
-Note:
-This does not guarantee the device is connected to a Wi-Fi network.
-It only reflects whether Wi-Fi is enabled at OS level.
-
-**Returns:** <code>Promise&lt;{ available: boolean; }&gt;</code>
-
---------------------
-
-
-### isWifiEnabled()
-
-```typescript
-isWifiEnabled() => Promise<{ enabled: boolean; }>
-```
-
-Returns whether Wi-Fi is enabled.
-
-On Android this is effectively the same underlying check as isWifiAvailable().
-We expose it separately because iOS has a distinct method and the Capacitor API
-should remain explicit.
-
-**Returns:** <code>Promise&lt;{ enabled: boolean; }&gt;</code>
-
---------------------
-
-
-### setWifiState(...)
-
-```typescript
-setWifiState(options: { enable: boolean; }) => Promise<void>
-```
-
-Attempts to enable/disable Wi-Fi.
-
-Important platform limitation:
-Android 10+ no longer allows normal third-party apps to change Wi-Fi state
-using the old WifiManager.setWifiEnabled() API.
-
-Therefore:
-- Android &lt; 10: best-effort state change
-- Android 10+: rejected
-- iOS: rejected
-
-| Param         | Type                              |
-| ------------- | --------------------------------- |
-| **`options`** | <code>{ enable: boolean; }</code> |
-
---------------------
-
-
-### requestLocalNetworkAuthorization(...)
-
-```typescript
-requestLocalNetworkAuthorization(options?: { timeoutMs?: number | undefined; } | undefined) => Promise<{ value: number; }>
-```
-
-Requests local network authorization (iOS 14+).
-On unsupported platforms this may be unavailable.
-
-| Param         | Type                                 |
-| ------------- | ------------------------------------ |
-| **`options`** | <code>{ timeoutMs?: number; }</code> |
-
-**Returns:** <code>Promise&lt;{ value: number; }&gt;</code>
-
---------------------
-
-
-### getLocalNetworkAuthorizationStatus(...)
-
-```typescript
-getLocalNetworkAuthorizationStatus(options?: { timeoutMs?: number | undefined; } | undefined) => Promise<{ value: number; }>
-```
-
-Returns local network authorization status.
-iOS values:
- 1  = granted
- 0  = unknown / not requested
--1  = denied
--2  = indeterminate
-
-| Param         | Type                                 |
-| ------------- | ------------------------------------ |
-| **`options`** | <code>{ timeoutMs?: number; }</code> |
-
-**Returns:** <code>Promise&lt;{ value: number; }&gt;</code>
-
---------------------
-
-
-### getExternalSdCardDetails()
-
-```typescript
-getExternalSdCardDetails() => Promise<{ details: ExternalSdCardDetail[]; }>
-```
-
-Returns details for detected removable external SD card paths.
-
-Cordova parity:
-Returns removable external SD card details wrapped in a `details` property.
-
-**Returns:** <code>Promise&lt;{ details: ExternalSdCardDetail[]; }&gt;</code>
-
---------------------
-
-
-### isMicrophoneAuthorized()
-
-```typescript
-isMicrophoneAuthorized() => Promise<{ value: boolean; }>
-```
-
-True if the app is currently authorized to use the microphone.
-
-iOS:
-Uses AVAudioSession.recordPermission and returns true only when
-the permission state is `granted`.
-
-Android:
-Maps to RECORD_AUDIO runtime permission state.
-
-**Returns:** <code>Promise&lt;{ value: boolean; }&gt;</code>
-
---------------------
-
-
-### getMicrophoneAuthorizationStatus()
-
-```typescript
-getMicrophoneAuthorizationStatus() => Promise<{ value: string; }>
-```
-
-Returns microphone authorization status using Cordova parity strings.
-
-Possible values:
-- "granted"
-- "denied"
-- "not_determined"
-
-iOS:
-Derived from AVAudioSession.recordPermission.
-
-Android:
-Derived from RECORD_AUDIO runtime permission state.
-
-**Returns:** <code>Promise&lt;{ value: string; }&gt;</code>
-
---------------------
-
-
-### requestMicrophoneAuthorization()
-
-```typescript
-requestMicrophoneAuthorization() => Promise<{ value: boolean; }>
-```
-
-Requests microphone authorization.
-
-iOS:
-Triggers the AVAudioSession.requestRecordPermission() prompt.
-
-Android:
-Requests RECORD_AUDIO runtime permission.
-
-Returns true if permission is granted after the request.
-
-**Returns:** <code>Promise&lt;{ value: boolean; }&gt;</code>
-
---------------------
-
-
-### isMotionAvailable()
-
-```typescript
-isMotionAvailable() => Promise<{ value: boolean; }>
-```
-
-True if motion/activity tracking is available on the device.
-
-**Returns:** <code>Promise&lt;{ value: boolean; }&gt;</code>
-
---------------------
-
-
-### isMotionRequestOutcomeAvailable()
-
-```typescript
-isMotionRequestOutcomeAvailable() => Promise<{ value: boolean; }>
-```
-
-True if the device can determine the outcome of a motion permission request.
-
-iOS:
-Best-effort parity with Cordova using CMPedometer event tracking availability.
-
-**Returns:** <code>Promise&lt;{ value: boolean; }&gt;</code>
-
---------------------
-
-
-### getMotionAuthorizationStatus()
-
-```typescript
-getMotionAuthorizationStatus() => Promise<{ value: string; }>
-```
-
-Returns motion authorization status using Cordova parity strings.
-
-Possible values:
-- "granted"
-- "denied"
-- "not_determined"
-- "not_requested"
-- "not_available"
-- "restricted"
-- "unknown"
-
-**Returns:** <code>Promise&lt;{ value: string; }&gt;</code>
-
---------------------
-
-
-### requestMotionAuthorization()
-
-```typescript
-requestMotionAuthorization() => Promise<{ value: string; }>
-```
-
-Requests motion authorization.
-
-Important Cordova parity behavior:
-On iOS this can only be meaningfully requested once after app installation.
-Subsequent calls reject if the permission request was already triggered before.
-
-**Returns:** <code>Promise&lt;{ value: string; }&gt;</code>
-
---------------------
-
-
-### getRemindersAuthorizationStatus()
-
-```typescript
-getRemindersAuthorizationStatus() => Promise<{ value: string; }>
-```
-
-Returns reminders authorization status using Cordova parity strings.
-
-Possible values:
-- "granted"
-- "denied"
-- "not_determined"
-
-**Returns:** <code>Promise&lt;{ value: string; }&gt;</code>
-
---------------------
-
-
-### isRemindersAuthorized()
-
-```typescript
-isRemindersAuthorized() => Promise<{ value: boolean; }>
-```
-
-True if the app is currently authorized to access reminders.
-
-**Returns:** <code>Promise&lt;{ value: boolean; }&gt;</code>
-
---------------------
-
-
-### requestRemindersAuthorization()
-
-```typescript
-requestRemindersAuthorization() => Promise<{ value: boolean; }>
-```
-
-Requests reminders authorization.
-
-Returns true if permission is granted after the request.
-
-**Returns:** <code>Promise&lt;{ value: boolean; }&gt;</code>
-
---------------------
-
-
-### switchToNFCSettings()
-
-```typescript
-switchToNFCSettings() => Promise<void>
-```
-
-Opens the OS-level NFC settings screen.
-
-Android:
-Opens the system NFC settings panel using
-Settings.ACTION_NFC_SETTINGS (or wireless settings on older versions).
-
-iOS:
-Not supported — iOS does not expose a direct NFC settings screen.
-Calls may be rejected or behave as a no-op depending on implementation.
-
---------------------
-
-
-### isNFCPresent()
-
-```typescript
-isNFCPresent() => Promise<{ present: boolean; }>
-```
-
-True if the device contains NFC hardware.
-
-Android:
-Checks for the presence of an NFC adapter via NfcManager/NfcAdapter.
-
-iOS:
-Returns best-effort parity. Devices that support CoreNFC will return true.
-
-**Returns:** <code>Promise&lt;{ present: boolean; }&gt;</code>
-
---------------------
-
-
-### isNFCEnabled()
-
-```typescript
-isNFCEnabled() => Promise<{ enabled: boolean; }>
-```
-
-Returns whether NFC is currently enabled at the OS level.
-
-Android:
-Uses NfcAdapter.isEnabled().
-
-iOS:
-NFC is managed by the system and generally considered enabled when available.
-
-**Returns:** <code>Promise&lt;{ enabled: boolean; }&gt;</code>
-
---------------------
-
-
-### isNFCAvailable()
-
-```typescript
-isNFCAvailable() => Promise<{ available: boolean; }>
-```
-
-True if NFC is both present and enabled.
-
-This method combines:
-- hardware presence
-- adapter enabled state
-
-Android:
-Equivalent to:
-  isNFCPresent && isNFCEnabled
-
-**Returns:** <code>Promise&lt;{ available: boolean; }&gt;</code>
-
---------------------
-
-
-### addListener('nfcStateChange', ...)
-
-```typescript
-addListener(eventName: 'nfcStateChange', listenerFunc: (event: { state: string; }) => void) => Promise<PluginListenerHandle>
-```
-
-NFC adapter state change event.
-
-Fired when the underlying NFC adapter state changes.
-
-Possible state values (Cordova parity):
-- "powered_on"
-- "powered_off"
-- "powering_on"
-- "powering_off"
-- "unknown"
-
-Android:
-Triggered from NfcAdapter.ACTION_ADAPTER_STATE_CHANGED broadcasts.
-
-| Param              | Type                                                |
-| ------------------ | --------------------------------------------------- |
-| **`eventName`**    | <code>'nfcStateChange'</code>                       |
-| **`listenerFunc`** | <code>(event: { state: string; }) =&gt; void</code> |
-
-**Returns:** <code>Promise&lt;<a href="#pluginlistenerhandle">PluginListenerHandle</a>&gt;</code>
-
---------------------
-
-
-### getCalendarAuthorizationStatus()
-
-```typescript
-getCalendarAuthorizationStatus() => Promise<{ value: string; }>
-```
-
-Returns calendar authorization status using Cordova parity strings.
-
-Possible values:
-- "granted"
-- "denied"
-- "not_determined"
-
-**Returns:** <code>Promise&lt;{ value: string; }&gt;</code>
-
---------------------
-
-
-### isCalendarAuthorized()
-
-```typescript
-isCalendarAuthorized() => Promise<{ value: boolean; }>
-```
-
-True if the app is currently authorized to access calendar events.
-
-**Returns:** <code>Promise&lt;{ value: boolean; }&gt;</code>
-
---------------------
-
-
-### requestCalendarAuthorization()
-
-```typescript
-requestCalendarAuthorization() => Promise<{ value: boolean; }>
-```
-
-Requests calendar authorization.
-
-Returns true if permission is granted after the request.
-
-**Returns:** <code>Promise&lt;{ value: boolean; }&gt;</code>
-
---------------------
-
-
-### getAddressBookAuthorizationStatus()
-
-```typescript
-getAddressBookAuthorizationStatus() => Promise<{ value: string; }>
-```
-
-Returns address book / contacts authorization status using Cordova parity strings.
-
-Possible values:
-- "granted"
-- "denied"
-- "not_determined"
-
-**Returns:** <code>Promise&lt;{ value: string; }&gt;</code>
-
---------------------
-
-
-### isAddressBookAuthorized()
-
-```typescript
-isAddressBookAuthorized() => Promise<{ value: boolean; }>
-```
-
-True if the app is currently authorized to access contacts.
-
-**Returns:** <code>Promise&lt;{ value: boolean; }&gt;</code>
-
---------------------
-
-
-### requestAddressBookAuthorization()
-
-```typescript
-requestAddressBookAuthorization() => Promise<{ value: boolean; }>
+# After changing plugin, update the test app
+cd diagnostic-cap-test
+npm run build
+npx cap sync android   # or ios
 ```
-
-Requests contacts authorization.
-
-Returns true if permission is granted after the request.
-
-**Returns:** <code>Promise&lt;{ value: boolean; }&gt;</code>
-
---------------------
-
-
-### Interfaces
-
-
-#### Array
-
-| Prop         | Type                | Description                                                                                            |
-| ------------ | ------------------- | ------------------------------------------------------------------------------------------------------ |
-| **`length`** | <code>number</code> | Gets or sets the length of the array. This is a number one higher than the highest index in the array. |
-
-| Method             | Signature                                                                                                                     | Description                                                                                                                                                                                                                                 |
-| ------------------ | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **toString**       | () =&gt; string                                                                                                               | Returns a string representation of an array.                                                                                                                                                                                                |
-| **toLocaleString** | () =&gt; string                                                                                                               | Returns a string representation of an array. The elements are converted to string using their toLocalString methods.                                                                                                                        |
-| **pop**            | () =&gt; T \| undefined                                                                                                       | Removes the last element from an array and returns it. If the array is empty, undefined is returned and the array is not modified.                                                                                                          |
-| **push**           | (...items: T[]) =&gt; number                                                                                                  | Appends new elements to the end of an array, and returns the new length of the array.                                                                                                                                                       |
-| **concat**         | (...items: <a href="#concatarray">ConcatArray</a>&lt;T&gt;[]) =&gt; T[]                                                       | Combines two or more arrays. This method returns a new array without modifying any existing arrays.                                                                                                                                         |
-| **concat**         | (...items: (T \| <a href="#concatarray">ConcatArray</a>&lt;T&gt;)[]) =&gt; T[]                                                | Combines two or more arrays. This method returns a new array without modifying any existing arrays.                                                                                                                                         |
-| **join**           | (separator?: string \| undefined) =&gt; string                                                                                | Adds all the elements of an array into a string, separated by the specified separator string.                                                                                                                                               |
-| **reverse**        | () =&gt; T[]                                                                                                                  | Reverses the elements in an array in place. This method mutates the array and returns a reference to the same array.                                                                                                                        |
-| **shift**          | () =&gt; T \| undefined                                                                                                       | Removes the first element from an array and returns it. If the array is empty, undefined is returned and the array is not modified.                                                                                                         |
-| **slice**          | (start?: number \| undefined, end?: number \| undefined) =&gt; T[]                                                            | Returns a copy of a section of an array. For both start and end, a negative index can be used to indicate an offset from the end of the array. For example, -2 refers to the second to last element of the array.                           |
-| **sort**           | (compareFn?: ((a: T, b: T) =&gt; number) \| undefined) =&gt; this                                                             | Sorts an array in place. This method mutates the array and returns a reference to the same array.                                                                                                                                           |
-| **splice**         | (start: number, deleteCount?: number \| undefined) =&gt; T[]                                                                  | Removes elements from an array and, if necessary, inserts new elements in their place, returning the deleted elements.                                                                                                                      |
-| **splice**         | (start: number, deleteCount: number, ...items: T[]) =&gt; T[]                                                                 | Removes elements from an array and, if necessary, inserts new elements in their place, returning the deleted elements.                                                                                                                      |
-| **unshift**        | (...items: T[]) =&gt; number                                                                                                  | Inserts new elements at the start of an array, and returns the new length of the array.                                                                                                                                                     |
-| **indexOf**        | (searchElement: T, fromIndex?: number \| undefined) =&gt; number                                                              | Returns the index of the first occurrence of a value in an array, or -1 if it is not present.                                                                                                                                               |
-| **lastIndexOf**    | (searchElement: T, fromIndex?: number \| undefined) =&gt; number                                                              | Returns the index of the last occurrence of a specified value in an array, or -1 if it is not present.                                                                                                                                      |
-| **every**          | &lt;S extends T&gt;(predicate: (value: T, index: number, array: T[]) =&gt; value is S, thisArg?: any) =&gt; this is S[]       | Determines whether all the members of an array satisfy the specified test.                                                                                                                                                                  |
-| **every**          | (predicate: (value: T, index: number, array: T[]) =&gt; unknown, thisArg?: any) =&gt; boolean                                 | Determines whether all the members of an array satisfy the specified test.                                                                                                                                                                  |
-| **some**           | (predicate: (value: T, index: number, array: T[]) =&gt; unknown, thisArg?: any) =&gt; boolean                                 | Determines whether the specified callback function returns true for any element of an array.                                                                                                                                                |
-| **forEach**        | (callbackfn: (value: T, index: number, array: T[]) =&gt; void, thisArg?: any) =&gt; void                                      | Performs the specified action for each element in an array.                                                                                                                                                                                 |
-| **map**            | &lt;U&gt;(callbackfn: (value: T, index: number, array: T[]) =&gt; U, thisArg?: any) =&gt; U[]                                 | Calls a defined callback function on each element of an array, and returns an array that contains the results.                                                                                                                              |
-| **filter**         | &lt;S extends T&gt;(predicate: (value: T, index: number, array: T[]) =&gt; value is S, thisArg?: any) =&gt; S[]               | Returns the elements of an array that meet the condition specified in a callback function.                                                                                                                                                  |
-| **filter**         | (predicate: (value: T, index: number, array: T[]) =&gt; unknown, thisArg?: any) =&gt; T[]                                     | Returns the elements of an array that meet the condition specified in a callback function.                                                                                                                                                  |
-| **reduce**         | (callbackfn: (previousValue: T, currentValue: T, currentIndex: number, array: T[]) =&gt; T) =&gt; T                           | Calls the specified callback function for all the elements in an array. The return value of the callback function is the accumulated result, and is provided as an argument in the next call to the callback function.                      |
-| **reduce**         | (callbackfn: (previousValue: T, currentValue: T, currentIndex: number, array: T[]) =&gt; T, initialValue: T) =&gt; T          |                                                                                                                                                                                                                                             |
-| **reduce**         | &lt;U&gt;(callbackfn: (previousValue: U, currentValue: T, currentIndex: number, array: T[]) =&gt; U, initialValue: U) =&gt; U | Calls the specified callback function for all the elements in an array. The return value of the callback function is the accumulated result, and is provided as an argument in the next call to the callback function.                      |
-| **reduceRight**    | (callbackfn: (previousValue: T, currentValue: T, currentIndex: number, array: T[]) =&gt; T) =&gt; T                           | Calls the specified callback function for all the elements in an array, in descending order. The return value of the callback function is the accumulated result, and is provided as an argument in the next call to the callback function. |
-| **reduceRight**    | (callbackfn: (previousValue: T, currentValue: T, currentIndex: number, array: T[]) =&gt; T, initialValue: T) =&gt; T          |                                                                                                                                                                                                                                             |
-| **reduceRight**    | &lt;U&gt;(callbackfn: (previousValue: U, currentValue: T, currentIndex: number, array: T[]) =&gt; U, initialValue: U) =&gt; U | Calls the specified callback function for all the elements in an array, in descending order. The return value of the callback function is the accumulated result, and is provided as an argument in the next call to the callback function. |
-
-
-#### ConcatArray
-
-| Prop         | Type                |
-| ------------ | ------------------- |
-| **`length`** | <code>number</code> |
-
-| Method    | Signature                                                          |
-| --------- | ------------------------------------------------------------------ |
-| **join**  | (separator?: string \| undefined) =&gt; string                     |
-| **slice** | (start?: number \| undefined, end?: number \| undefined) =&gt; T[] |
-
-
-#### PluginListenerHandle
-
-| Prop         | Type                                      |
-| ------------ | ----------------------------------------- |
-| **`remove`** | <code>() =&gt; Promise&lt;void&gt;</code> |
-
-
-#### ExternalSdCardDetail
-
-| Prop            | Type                                 |
-| --------------- | ------------------------------------ |
-| **`path`**      | <code>string</code>                  |
-| **`filePath`**  | <code>string</code>                  |
-| **`canWrite`**  | <code>boolean</code>                 |
-| **`freeSpace`** | <code>number</code>                  |
-| **`type`**      | <code>'root' \| 'application'</code> |
-
-
-### Type Aliases
-
 
-#### Record
+Build output goes to `dist/`. The `dist/` folder is included in the npm package via the `files` field in `package.json` — don't gitignore it if you're installing directly from GitHub.
 
-Construct a type with a set of properties K of type T
+---
 
-<code>{ [P in K]: T; }</code>
+## Related
 
-</docgen-api>
+- [cordova-diagnostic-plugin](https://github.com/dpa99c/cordova-diagnostic-plugin) — the original Cordova plugin this ports
+- [OutSystems ODC mobile plugins docs](https://success.outsystems.com/documentation/outsystems_developer_cloud/building_apps/mobile_apps/)
+- [Capacitor plugin development docs](https://capacitorjs.com/docs/plugins)
