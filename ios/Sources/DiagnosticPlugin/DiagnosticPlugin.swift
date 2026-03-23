@@ -22,7 +22,7 @@ import Capacitor
 public class DiagnosticPlugin: CAPPlugin {
     
 
-    private lazy var location = LocationModule()
+    private lazy var location = LocationModule(plugin: self)
     private lazy var bluetooth = BluetoothModule(plugin: self)
     private lazy var camera = CameraModule()
     private lazy var notifications = NotificationsModule(plugin: self)

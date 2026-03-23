@@ -105,4 +105,5 @@ CAP_PLUGIN(DiagnosticPlugin, "DiagnosticPlugin",
     CAP_PLUGIN_METHOD(switchToWirelessSettings, CAPPluginReturnPromise);
     CAP_PLUGIN_METHOD(isBackgroundRefreshAuthorized, CAPPluginReturnPromise);
     CAP_PLUGIN_METHOD(enableDebug, CAPPluginReturnPromise);
+    CAP_PLUGIN_METHOD(addListener, CAPPluginReturnCallback);
 )

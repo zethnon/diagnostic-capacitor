@@ -3,20 +3,33 @@ import Capacitor
 import CoreLocation
 import UIKit
 
+/*
+ * LocationModule handles location permission checks, state queries, and
+ * location state change events on iOS.
+ *
+ * Location state changes are emitted via notifyListeners("locationStateChange")
+ * when CLLocationManagerDelegate fires a status change. This fires on:
+ * - User toggles location services globally in Settings
+ * - User changes this app's location permission
+ *
+ * The plugin reference is weak to avoid a retain cycle.
+ */
 final class LocationModule: NSObject, CLLocationManagerDelegate {
 
     private let location_manager = CLLocationManager()
+    private weak var plugin: CAPPlugin?
 
-    // Holds the pending call from requestLocationAuthorization() until the
-    // delegate fires a status change. Set to nil once resolved.
     private var pending_location_auth_call: CAPPluginCall?
     private var current_location_authorization_status: String?
 
-    // iOS 14+ only — tracks accuracy authorization separately from location permission
     @available(iOS 14.0, *)
     private var current_location_accuracy_authorization: String?
 
-    override init() {
+    // Tracks last emitted state to deduplicate locationStateChange events
+    private var last_emitted_location_state: String?
+
+    init(plugin: CAPPlugin) {
+        self.plugin = plugin
         super.init()
         location_manager.delegate = self
     }
@@ -25,10 +38,6 @@ final class LocationModule: NSObject, CLLocationManagerDelegate {
     // Helpers
     // -------------------------------------------------------------------------
 
-    /*
-     * iOS 14+ uses instance property authorizationStatus.
-     * Before 14, the class method is the only option.
-     */
     private func get_authorization_status() -> CLAuthorizationStatus {
         if #available(iOS 14.0, *) {
             return location_manager.authorizationStatus
@@ -39,21 +48,14 @@ final class LocationModule: NSObject, CLLocationManagerDelegate {
 
     /*
      * Maps CLAuthorizationStatus to Cordova-compatible strings.
-     * Note: on iOS there's no "not_determined" for foreground/background split —
-     * "authorizedAlways" maps to "granted" to match Cordova's iOS behavior.
      */
     private func auth_status_string(_ auth_status: CLAuthorizationStatus) -> String {
         switch auth_status {
-        case .denied, .restricted:
-            return "denied"
-        case .notDetermined:
-            return "not_determined"
-        case .authorizedAlways:
-            return "granted"
-        case .authorizedWhenInUse:
-            return "authorized_when_in_use"
-        @unknown default:
-            return "not_determined"
+        case .denied, .restricted: return "denied"
+        case .notDetermined: return "not_determined"
+        case .authorizedAlways: return "granted"
+        case .authorizedWhenInUse: return "authorized_when_in_use"
+        @unknown default: return "not_determined"
         }
     }
 
@@ -70,9 +72,21 @@ final class LocationModule: NSObject, CLLocationManagerDelegate {
     }
 
     /*
-     * Called by the CLLocationManagerDelegate whenever auth status changes.
-     * Resolves the pending call if one exists, but only if the status actually changed.
-     * This mirrors Cordova's behavior of returning only on state change.
+     * Maps current state to a string for the locationStateChange event.
+     * On iOS there are no separate GPS/network modes, so we use:
+     * "location_off" when services are disabled globally,
+     * otherwise the auth status string.
+     */
+    private func location_state_for_event(_ auth_status: CLAuthorizationStatus) -> String {
+        if !CLLocationManager.locationServicesEnabled() {
+            return "location_off"
+        }
+        return auth_status_string(auth_status)
+    }
+
+    /*
+     * Resolves any pending requestLocationAuthorization() call on status change,
+     * and emits a locationStateChange event if the state actually changed.
      */
     private func report_change_authorization_status(_ auth_status: CLAuthorizationStatus) {
         let status = auth_status_string(auth_status)
@@ -85,11 +99,17 @@ final class LocationModule: NSObject, CLLocationManagerDelegate {
         }
         current_location_authorization_status = status
 
-        if changed {
-            if let call = pending_location_auth_call {
-                pending_location_auth_call = nil
-                call.resolve(["status": status])
-            }
+        // Resolve any pending auth call
+        if changed, let call = pending_location_auth_call {
+            pending_location_auth_call = nil
+            call.resolve(["status": status])
+        }
+
+        // Emit locationStateChange event (deduped)
+        let event_state = location_state_for_event(auth_status)
+        if last_emitted_location_state == nil || last_emitted_location_state != event_state {
+            last_emitted_location_state = event_state
+            plugin?.notifyListeners("locationStateChange", data: ["state": event_state])
         }
     }
 
@@ -97,21 +117,13 @@ final class LocationModule: NSObject, CLLocationManagerDelegate {
     // Plugin methods
     // -------------------------------------------------------------------------
 
-    /*
-     * Returns { status: string } — current authorization status without prompting.
-     */
     func getLocationAuthorizationStatus(_ call: CAPPluginCall) {
         call.resolve(["status": auth_status_string(get_authorization_status())])
     }
 
     /*
      * Triggers the location permission prompt if status is "not_determined".
-     * If already determined (any status), resolves immediately with current status —
-     * this avoids the call hanging when the user doesn't interact with the dialog,
-     * which is a known Cordova quirk we preserve here.
-     *
-     * Requires NSLocationWhenInUseUsageDescription in Info.plist.
-     * "always" mode additionally requires NSLocationAlwaysAndWhenInUseUsageDescription.
+     * If already determined, resolves immediately with the current status.
      */
     func requestLocationAuthorization(_ call: CAPPluginCall) {
         let mode = call.getString("mode") ?? "when_in_use"
@@ -145,27 +157,18 @@ final class LocationModule: NSObject, CLLocationManagerDelegate {
         }
     }
 
-    /*
-     * Returns { enabled: boolean } — whether location services are enabled at the system level.
-     * This is the iOS equivalent of Android's "location mode on/off" check.
-     * Does not check app-level permission.
-     */
     func isLocationEnabled(_ call: CAPPluginCall) {
         call.resolve(["enabled": CLLocationManager.locationServicesEnabled()])
     }
 
-    /*
-     * Returns { available: boolean } — location services are on AND the app is authorized.
-     */
     func isLocationAvailable(_ call: CAPPluginCall) {
         let value = CLLocationManager.locationServicesEnabled() && is_location_authorized_internal()
         call.resolve(["available": value])
     }
 
     /*
-     * Returns { mode: string }.
-     * iOS doesn't have distinct location modes like Android (GPS only, network only, etc.).
-     * If services are enabled we return "high_accuracy" to match Cordova's iOS output.
+     * iOS has no separate GPS/network modes.
+     * Returns "high_accuracy" when enabled, "location_off" when disabled.
      */
     func getLocationMode(_ call: CAPPluginCall) {
         if !CLLocationManager.locationServicesEnabled() {
@@ -175,11 +178,6 @@ final class LocationModule: NSObject, CLLocationManagerDelegate {
         }
     }
 
-    /*
-     * iOS doesn't separate GPS and network providers — both map to CLLocationManager.
-     * These three methods all check the same underlying locationServicesEnabled() flag
-     * to maintain Cordova API parity across platforms.
-     */
     func isGpsLocationEnabled(_ call: CAPPluginCall) {
         call.resolve(["enabled": CLLocationManager.locationServicesEnabled()])
     }
@@ -198,10 +196,6 @@ final class LocationModule: NSObject, CLLocationManagerDelegate {
         call.resolve(["available": value])
     }
 
-    /*
-     * Opens the app's page in Settings. Both open/switch to location settings
-     * go to the same place on iOS — no direct link to the global location toggle.
-     */
     func openLocationSettings(_ call: CAPPluginCall) {
         open_app_settings()
         call.resolve()
@@ -212,24 +206,14 @@ final class LocationModule: NSObject, CLLocationManagerDelegate {
         call.resolve()
     }
 
-    /*
-     * Returns { available: boolean } — checks for hardware compass (heading availability).
-     */
     func isCompassAvailable(_ call: CAPPluginCall) {
         call.resolve(["available": CLLocationManager.headingAvailable()])
     }
 
-    /*
-     * Returns { value: boolean } — true if app has either whenInUse or always authorization.
-     */
     func isLocationAuthorized(_ call: CAPPluginCall) {
         call.resolve(["value": is_location_authorized_internal()])
     }
 
-    /*
-     * Returns { value: "full" | "reduced" }.
-     * iOS 14+ introduced reduced accuracy ("approximate location"). Below iOS 14 always returns "full".
-     */
     func getLocationAccuracyAuthorization(_ call: CAPPluginCall) {
         if #available(iOS 14.0, *) {
             let accuracy = (location_manager.accuracyAuthorization == .fullAccuracy) ? "full" : "reduced"
@@ -239,13 +223,6 @@ final class LocationModule: NSObject, CLLocationManagerDelegate {
         }
     }
 
-    /*
-     * Requests a temporary upgrade to full accuracy using a purpose key from Info.plist.
-     * Only available on iOS 14+. Rejects cleanly on older versions.
-     * Requires NSLocationTemporaryUsageDescriptionDictionary in Info.plist with a matching key.
-     *
-     * @param purpose — string key matching an entry in NSLocationTemporaryUsageDescriptionDictionary
-     */
     func requestTemporaryFullAccuracyAuthorization(_ call: CAPPluginCall) {
         if #available(iOS 14.0, *) {
             let has_dict = Bundle.main.object(forInfoDictionaryKey: "NSLocationTemporaryUsageDescriptionDictionary") != nil
@@ -275,10 +252,6 @@ final class LocationModule: NSObject, CLLocationManagerDelegate {
     // CLLocationManagerDelegate
     // -------------------------------------------------------------------------
 
-    /*
-     * iOS 14+ combined delegate — handles both authorization and accuracy changes.
-     * Fires report_change_authorization_status to resolve any pending auth calls.
-     */
     @available(iOS 14.0, *)
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         report_change_authorization_status(manager.authorizationStatus)
@@ -294,9 +267,6 @@ final class LocationModule: NSObject, CLLocationManagerDelegate {
         _ = changed
     }
 
-    /*
-     * Pre-iOS 14 delegate for authorization status changes.
-     */
     func locationManager(_ manager: CLLocationManager, didChangeAuthorization status: CLAuthorizationStatus) {
         report_change_authorization_status(status)
     }

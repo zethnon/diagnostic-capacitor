@@ -81,7 +81,7 @@ import com.noesis.diagnostic.modules.SystemModule;
         )
     }
 )
-public class DiagnosticPlugin extends Plugin implements BluetoothModule.BluetoothEventEmitter, NfcModule.NfcStateChangeEmitter {
+public class DiagnosticPlugin extends Plugin implements BluetoothModule.BluetoothEventEmitter, NfcModule.NfcStateChangeEmitter, LocationModule.LocationStateChangeEmitter {
 
     private LocationModule location;
     private BluetoothModule bluetooth;
@@ -96,7 +96,7 @@ public class DiagnosticPlugin extends Plugin implements BluetoothModule.Bluetoot
     public void load() {
         super.load();
 
-        location = new LocationModule(this);
+        location = new LocationModule(this, this);
         bluetooth = new BluetoothModule(this, this);
         cameraModule = new CameraModule(getContext());
         notifications = new NotificationsModule(this);
@@ -105,6 +105,7 @@ public class DiagnosticPlugin extends Plugin implements BluetoothModule.Bluetoot
         nfc = new NfcModule(this, this);
         system = new SystemModule(this);
 
+        location.load();
         bluetooth.load();
     }
 
@@ -116,6 +117,10 @@ public class DiagnosticPlugin extends Plugin implements BluetoothModule.Bluetoot
 
         if (nfc != null) {
             nfc.destroy();
+        }
+
+        if (location != null) {
+            location.destroy();
         }
 
         super.handleOnDestroy();
@@ -486,6 +491,13 @@ public class DiagnosticPlugin extends Plugin implements BluetoothModule.Bluetoot
     @PluginMethod
     public void switchToWirelessSettings(PluginCall call) {
         system.switchToWirelessSettings(call);
+    }
+
+    @Override
+    public void emitLocationStateChange(String state) {
+        JSObject data = new JSObject();
+        data.put("state", state);
+        notifyListeners("locationStateChange", data);
     }
  
     @PluginMethod

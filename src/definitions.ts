@@ -635,4 +635,12 @@ export interface DiagnosticPlugin {
    * Possible values: "authorized", "denied_always", "restricted", "not_determined".
    */
   isBackgroundRefreshAuthorized(): Promise<{ value: string }>;
+
+  /**
+   * Registers a listener for location state changes.
+   * Fires when the user toggles location services or changes app location permission.
+   * Payload: { state: string } — matches getLocationMode() strings on Android,
+   * auth status strings on iOS.
+   */
+  addListener(eventName: 'locationStateChange',listenerFunc: (data: { state: string }) => void): Promise<PluginListenerHandle>;
 }

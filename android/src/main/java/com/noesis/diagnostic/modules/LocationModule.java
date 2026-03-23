@@ -1,8 +1,10 @@
 package com.noesis.diagnostic.modules;
 
 import android.Manifest;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.hardware.Sensor;
@@ -21,25 +23,118 @@ import com.getcapacitor.PluginCall;
 
 public class LocationModule {
 
+    /*
+     * Interface implemented by DiagnosticPlugin to forward location state
+     * change events to the JS layer via notifyListeners().
+     * Same pattern as BluetoothEventEmitter and NfcStateChangeEmitter.
+     */
+    public interface LocationStateChangeEmitter {
+        void emitLocationStateChange(String state);
+    }
+
+    private static final String TAG = "DiagCap";
     private static final String PREFS = "DiagCapPrefs";
     private static final String KEY_LOC_ASKED = "loc_asked";
 
     private final Plugin plugin;
+    private final LocationStateChangeEmitter emitter;
 
-    public LocationModule(Plugin plugin) {
+    private String current_location_state = null;
+    private boolean receiver_registered = false;
+
+    public LocationModule(Plugin plugin, LocationStateChangeEmitter emitter) {
         this.plugin = plugin;
+        this.emitter = emitter;
     }
+
+    /*
+     * BroadcastReceiver for PROVIDERS_CHANGED_ACTION.
+     * Fires when the user toggles GPS or network location in Settings.
+     */
+    private final BroadcastReceiver location_state_change_receiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (intent != null && LocationManager.PROVIDERS_CHANGED_ACTION.equals(intent.getAction())) {
+                notifyLocationStateChange();
+            }
+        }
+    };
+
+    /*
+     * Called from DiagnosticPlugin.load().
+     * Registers the PROVIDERS_CHANGED_ACTION receiver and captures initial state.
+     */
+    public void load() {
+        Log.d(TAG, "LocationModule.load()");
+        try {
+            plugin.getContext().registerReceiver(
+                location_state_change_receiver,
+                new IntentFilter(LocationManager.PROVIDERS_CHANGED_ACTION)
+            );
+            receiver_registered = true;
+            current_location_state = getLocationStateValue();
+        } catch (Exception e) {
+            Log.d(TAG, "LocationModule.load() registerReceiver failed: " + e.getMessage());
+        }
+    }
+
+    /*
+     * Called from DiagnosticPlugin.handleOnDestroy().
+     */
+    public void destroy() {
+        if (!receiver_registered) return;
+        try {
+            plugin.getContext().unregisterReceiver(location_state_change_receiver);
+            receiver_registered = false;
+        } catch (Exception ignored) {}
+    }
+
+    // -------------------------------------------------------------------------
+    // State change internals
+    // -------------------------------------------------------------------------
+
+    /*
+     * Maps the current provider state to a Cordova-compatible location mode string.
+     * These match the strings returned by getLocationMode() for consistency.
+     */
+    private String getLocationStateValue() {
+        try {
+            int mode = getLocationModeInt();
+            switch (mode) {
+                case 3: return "high_accuracy";
+                case 1: return "device_only";
+                case 2: return "battery_saving";
+                default: return "location_off";
+            }
+        } catch (Exception e) {
+            return "location_off";
+        }
+    }
+
+    /*
+     * Deduplicates location state change events — only fires the emitter
+     * if the state actually changed from the last known value.
+     */
+    private void notifyLocationStateChange() {
+        try {
+            String new_state = getLocationStateValue();
+            if (current_location_state == null || !current_location_state.equals(new_state)) {
+                current_location_state = new_state;
+                if (emitter != null) {
+                    emitter.emitLocationStateChange(new_state);
+                }
+            }
+        } catch (Exception ignored) {}
+    }
+
+    // -------------------------------------------------------------------------
+    // Plugin methods
+    // -------------------------------------------------------------------------
 
     private Context getContext() {
         return plugin.getContext();
     }
 
-    /*
-     * Tracks whether the user has ever been asked for location.
-     * We persist this ourselves because Android doesn't give us a clean
-     * "never asked" vs "denied" distinction — that gap only shows up via
-     * shouldShowRequestPermissionRationale(), which is unreliable as a first-read.
-     */
     private boolean wasLocationEverAsked() {
         SharedPreferences sp = getContext().getSharedPreferences(PREFS, Context.MODE_PRIVATE);
         return sp.getBoolean(KEY_LOC_ASKED, false);
@@ -53,17 +148,12 @@ public class LocationModule {
     /*
      * Returns the full authorization status string matching Cordova:
      * "authorized_always", "authorized_when_in_use", "denied", "not_determined".
-     *
-     * Background location is only tracked on Android Q+. On older versions,
-     * foreground grant is the highest state we can reach.
      */
     public void getLocationAuthorizationStatus(PluginCall call) {
         boolean fineGranted =
             ContextCompat.checkSelfPermission(getContext(), Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
-
         boolean coarseGranted =
             ContextCompat.checkSelfPermission(getContext(), Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED;
-
         boolean foregroundGranted = fineGranted || coarseGranted;
 
         boolean backgroundGranted = false;
@@ -73,7 +163,6 @@ public class LocationModule {
         }
 
         JSObject ret = new JSObject();
-
         if (backgroundGranted) {
             ret.put("status", "authorized_always");
         } else if (foregroundGranted) {
@@ -82,18 +171,15 @@ public class LocationModule {
             ret.put("status", wasLocationEverAsked() ? "denied" : "not_determined");
         }
 
-        Log.d("DiagCap", "getLocationAuthorizationStatus -> " + ret.getString("status"));
+        Log.d(TAG, "getLocationAuthorizationStatus -> " + ret.getString("status"));
         call.resolve(ret);
     }
 
     /*
-     * Returns { available: boolean }.
-     * Location is "available" only if both the system provider is on AND
-     * the app has at least foreground permission. Matches Cordova behavior.
+     * Returns { available: boolean } — system provider is on AND app has foreground permission.
      */
     public void isLocationAvailable(PluginCall call) {
         boolean available = false;
-
         try {
             int mode = getLocationModeInt();
             boolean enabled = (mode != 0);
@@ -103,17 +189,15 @@ public class LocationModule {
 
         JSObject ret = new JSObject();
         ret.put("available", available);
-        Log.d("DiagCap", "isLocationAvailable -> " + available);
+        Log.d(TAG, "isLocationAvailable -> " + available);
         call.resolve(ret);
     }
 
     /*
-     * Returns { enabled: boolean }.
-     * Checks only the system location provider — does not factor in app permission.
+     * Returns { enabled: boolean } — system location provider state only.
      */
     public void isLocationEnabled(PluginCall call) {
         boolean enabled = false;
-
         try {
             int mode = getLocationModeInt();
             enabled = (mode != 0);
@@ -121,13 +205,12 @@ public class LocationModule {
 
         JSObject ret = new JSObject();
         ret.put("enabled", enabled);
-        Log.d("DiagCap", "isLocationEnabled -> " + enabled);
+        Log.d(TAG, "isLocationEnabled -> " + enabled);
         call.resolve(ret);
     }
 
     /*
-     * Opens the app's detail settings page (not the global location settings).
-     * This lets the user grant/revoke location permission for this specific app.
+     * Opens the app's detail settings page.
      */
     public void openLocationSettings(PluginCall call) {
         Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
@@ -140,23 +223,17 @@ public class LocationModule {
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             getContext().startActivity(intent);
         }
-
         call.resolve();
     }
 
     /*
-     * Returns { mode: string } — one of: "high_accuracy", "device_only", "battery_saving", "location_off", "unknown".
-     *
-     * Pre-API 28 reads Settings.Secure.LOCATION_MODE directly.
-     * API 28+ that setting was deprecated — we reconstruct the mode by
-     * querying GPS and network providers from LocationManager.
+     * Returns { mode: string } — "high_accuracy", "device_only", "battery_saving",
+     * "location_off", or "unknown".
      */
     public void getLocationMode(PluginCall call) {
         String modeName = "unknown";
-
         try {
             int mode = getLocationModeInt();
-
             modeName = switch (mode) {
                 case 3 -> "high_accuracy";
                 case 1 -> "device_only";
@@ -168,17 +245,15 @@ public class LocationModule {
 
         JSObject ret = new JSObject();
         ret.put("mode", modeName);
-        Log.d("DiagCap", "getLocationMode -> " + modeName);
+        Log.d(TAG, "getLocationMode -> " + modeName);
         call.resolve(ret);
     }
 
     /*
-     * Returns { enabled: boolean } — true if GPS provider is active.
-     * Mode 3 (high_accuracy) and mode 1 (device_only) both have GPS on.
+     * Returns { enabled: boolean } — GPS provider active (mode 3 or 1).
      */
     public void isGpsLocationEnabled(PluginCall call) {
         boolean enabled = false;
-
         try {
             int mode = getLocationModeInt();
             enabled = (mode == 3 || mode == 1);
@@ -186,17 +261,15 @@ public class LocationModule {
 
         JSObject ret = new JSObject();
         ret.put("enabled", enabled);
-        Log.d("DiagCap", "isGpsLocationEnabled -> " + enabled);
+        Log.d(TAG, "isGpsLocationEnabled -> " + enabled);
         call.resolve(ret);
     }
 
     /*
-     * Returns { enabled: boolean } — true if network/WiFi location provider is active.
-     * Mode 3 (high_accuracy) and mode 2 (battery_saving) both have network on.
+     * Returns { enabled: boolean } — network provider active (mode 3 or 2).
      */
     public void isNetworkLocationEnabled(PluginCall call) {
         boolean enabled = false;
-
         try {
             int mode = getLocationModeInt();
             enabled = (mode == 3 || mode == 2);
@@ -204,16 +277,15 @@ public class LocationModule {
 
         JSObject ret = new JSObject();
         ret.put("enabled", enabled);
-        Log.d("DiagCap", "isNetworkLocationEnabled -> " + enabled);
+        Log.d(TAG, "isNetworkLocationEnabled -> " + enabled);
         call.resolve(ret);
     }
 
     /*
-     * Returns { available: boolean } — GPS enabled AND app has foreground permission.
+     * Returns { available: boolean } — GPS enabled AND foreground permission granted.
      */
     public void isGpsLocationAvailable(PluginCall call) {
         boolean available = false;
-
         try {
             int mode = getLocationModeInt();
             boolean gpsEnabled = (mode == 3 || mode == 1);
@@ -223,16 +295,15 @@ public class LocationModule {
 
         JSObject ret = new JSObject();
         ret.put("available", available);
-        Log.d("DiagCap", "isGpsLocationAvailable -> " + available);
+        Log.d(TAG, "isGpsLocationAvailable -> " + available);
         call.resolve(ret);
     }
 
     /*
-     * Returns { available: boolean } — network location enabled AND app has foreground permission.
+     * Returns { available: boolean } — network location enabled AND foreground permission granted.
      */
     public void isNetworkLocationAvailable(PluginCall call) {
         boolean available = false;
-
         try {
             int mode = getLocationModeInt();
             boolean netEnabled = (mode == 3 || mode == 2);
@@ -242,35 +313,30 @@ public class LocationModule {
 
         JSObject ret = new JSObject();
         ret.put("available", available);
-        Log.d("DiagCap", "isNetworkLocationAvailable -> " + available);
+        Log.d(TAG, "isNetworkLocationAvailable -> " + available);
         call.resolve(ret);
     }
 
     /*
-     * Opens the system's location source settings screen.
-     * Unlike openLocationSettings, this is the global toggle — not app-specific.
+     * Opens the system location source settings screen (global toggle).
      */
     public void switchToLocationSettings(PluginCall call) {
         Intent intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
-
         if (plugin.getActivity() != null) {
             plugin.getActivity().startActivity(intent);
         } else {
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             getContext().startActivity(intent);
         }
-
-        Log.d("DiagCap", "switchToLocationSettings -> opened");
+        Log.d(TAG, "switchToLocationSettings -> opened");
         call.resolve();
     }
 
     /*
-     * Returns { available: boolean } — checks for a magnetic field sensor (hardware compass).
-     * Purely hardware capability check — no permission involved.
+     * Returns { available: boolean } — checks for a magnetic field sensor.
      */
     public void isCompassAvailable(PluginCall call) {
         boolean available = false;
-
         try {
             SensorManager sm = (SensorManager) getContext().getSystemService(Context.SENSOR_SERVICE);
             available = (sm != null && sm.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD) != null);
@@ -278,116 +344,82 @@ public class LocationModule {
 
         JSObject ret = new JSObject();
         ret.put("available", available);
-        Log.d("DiagCap", "isCompassAvailable -> " + available);
+        Log.d(TAG, "isCompassAvailable -> " + available);
         call.resolve(ret);
     }
 
     /*
-     * Returns { value: boolean } — true if the app has either fine or coarse location granted.
-     * "Authorized" here means foreground only — background is not checked.
+     * Returns { value: boolean } — true if fine or coarse location is granted.
      */
     public void isLocationAuthorized(PluginCall call) {
         boolean authorized = isLocationAuthorizedForeground();
         JSObject ret = new JSObject();
         ret.put("value", authorized);
-        Log.d("DiagCap", "isLocationAuthorized -> " + authorized);
+        Log.d(TAG, "isLocationAuthorized -> " + authorized);
         call.resolve(ret);
     }
 
     /*
      * Returns { value: "full" } always on Android.
-     * The reduced accuracy concept (iOS 14+) doesn't exist on Android —
-     * this is here purely for Cordova API surface parity.
+     * Reduced accuracy is an iOS 14+ concept.
      */
     public void getLocationAccuracyAuthorization(PluginCall call) {
         JSObject ret = new JSObject();
         ret.put("value", "full");
-        Log.d("DiagCap", "getLocationAccuracyAuthorization -> full");
         call.resolve(ret);
     }
 
     /*
      * Returns { value: "full" } always on Android.
-     * Temporary accuracy downgrade/upgrade is an iOS 14+ concept.
-     * Android always runs at full accuracy if permission is granted.
+     * Temporary accuracy is an iOS 14+ concept.
      */
     public void requestTemporaryFullAccuracyAuthorization(PluginCall call) {
         JSObject ret = new JSObject();
         ret.put("value", "full");
-        Log.d("DiagCap", "requestTemporaryFullAccuracyAuthorization -> full");
         call.resolve(ret);
     }
 
-    /*
-     * Called after the Capacitor permission dialog closes for foreground location.
-     * On Android Q (10), we have to fire the background location prompt separately
-     * if "always" was requested — Android Q requires a second prompt for background.
-     * Post-Q, "always" requires the user to manually go to Settings.
-     */
     public void onLocationPermissionResult(PluginCall call) {
         boolean fineGranted =
             ContextCompat.checkSelfPermission(getContext(), Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
-
         boolean coarseGranted =
             ContextCompat.checkSelfPermission(getContext(), Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED;
-
         boolean foregroundGranted = fineGranted || coarseGranted;
 
         if (!foregroundGranted) {
             JSObject ret = new JSObject();
             ret.put("status", "denied");
-            Log.d("DiagCap", "onLocationPermissionResult -> " + ret.getString("status"));
             call.resolve(ret);
             return;
         }
 
-        // If background already granted, keep authorized_always regardless of requested mode
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             boolean backgroundGranted =
                 ContextCompat.checkSelfPermission(getContext(), Manifest.permission.ACCESS_BACKGROUND_LOCATION)
                     == PackageManager.PERMISSION_GRANTED;
-
             if (backgroundGranted) {
                 JSObject ret = new JSObject();
                 ret.put("status", "authorized_always");
-                Log.d("DiagCap", "onLocationPermissionResult -> authorized_always (already had background)");
                 call.resolve(ret);
                 return;
             }
         }
 
         String mode = call.getData().optString("mode", "when_in_use");
-
         if ("always".equalsIgnoreCase(mode) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-
-            if (Build.VERSION.SDK_INT == Build.VERSION_CODES.Q) {
-                JSObject ret = new JSObject();
-                ret.put("status", "authorized_when_in_use");
-                Log.d("DiagCap", "onLocationPermissionResult -> " + ret.getString("status") + " (background prompt requested next)");
-                call.resolve(ret);
-                return;
-            }
-
             JSObject ret = new JSObject();
             ret.put("status", "authorized_when_in_use");
-            Log.d("DiagCap", "onLocationPermissionResult -> " + ret.getString("status") + " (settings required for always)");
             call.resolve(ret);
             return;
         }
 
         JSObject ret = new JSObject();
         ret.put("status", "authorized_when_in_use");
-        Log.d("DiagCap", "onLocationPermissionResult -> " + ret.getString("status"));
         call.resolve(ret);
     }
 
-    /*
-     * Called after the background location permission prompt closes (Android Q only path).
-     * Returns "authorized_always" if background was granted, "authorized_when_in_use" otherwise.
-     */
     public void onBackgroundLocationPermissionResult(PluginCall call) {
         boolean backgroundGranted = false;
-
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             backgroundGranted =
                 ContextCompat.checkSelfPermission(getContext(), Manifest.permission.ACCESS_BACKGROUND_LOCATION) == PackageManager.PERMISSION_GRANTED;
@@ -395,7 +427,6 @@ public class LocationModule {
 
         JSObject ret = new JSObject();
         ret.put("status", backgroundGranted ? "authorized_always" : "authorized_when_in_use");
-        Log.d("DiagCap", "onBackgroundLocationPermissionResult -> " + ret.getString("status"));
         call.resolve(ret);
     }
 
@@ -404,11 +435,8 @@ public class LocationModule {
     // -------------------------------------------------------------------------
 
     /*
-     * Returns an integer representing the active location mode.
-     * Maps to: 0=off, 1=device_only (GPS), 2=battery_saving (network), 3=high_accuracy (GPS+network).
-     *
-     * Pre-API 28: reads Settings.Secure.LOCATION_MODE directly (deprecated but still works).
-     * API 28+: reconstructs mode by querying GPS and network providers from LocationManager.
+     * Pre-API 28: reads Settings.Secure.LOCATION_MODE.
+     * API 28+: reconstructs mode from LocationManager provider state.
      */
     private int getLocationModeInt() throws Exception {
         if (Build.VERSION.SDK_INT < 28) {
@@ -438,7 +466,6 @@ public class LocationModule {
             ContextCompat.checkSelfPermission(getContext(), Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
         boolean coarseGranted =
             ContextCompat.checkSelfPermission(getContext(), Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED;
-
         return fineGranted || coarseGranted;
     }
 }
