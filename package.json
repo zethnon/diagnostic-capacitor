@@ -1,6 +1,6 @@
 {
   "name": "@noesis/diagnostic-capacitor",
-  "version": "0.0.1",
+  "version": "1.0.9",
   "description": "Capacitor implementation of the Cordova Diagnostic plugin for checking device permissions and system settings.",
   "main": "dist/plugin.cjs.js",
   "module": "dist/esm/index.js",

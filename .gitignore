@@ -1,5 +1,4 @@
 # node files
-dist
 node_modules
 **/node_modules/
 
@@ -20,7 +19,6 @@ DerivedData/
 
 # macOS files
 .DS_Store
-
 
 
 # Based on Android gitignore template: https://github.com/github/gitignore/blob/HEAD/Android.gitignore
@@ -72,8 +70,6 @@ captures
 
 
 # builds
-dist/
-**/dist/
 android/build/
 **/android/build/
 ios/Pods/
