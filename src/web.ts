@@ -2,6 +2,9 @@ import { WebPlugin } from '@capacitor/core';
 import type { DiagnosticPlugin, ExternalSdCardDetail } from './definitions';
 
 export class DiagnosticPluginWeb extends WebPlugin implements DiagnosticPlugin {
+  
+  
+
   // -----------------------
   // helpers
   // -----------------------
@@ -9,6 +12,15 @@ export class DiagnosticPluginWeb extends WebPlugin implements DiagnosticPlugin {
   private not_implemented_status(): { status: string } {
     return { status: 'not_implemented' };
   }
+  
+  // -----------------------
+  // General
+  // -----------------------
+
+  async enableDebug(): Promise<void> {
+    return;
+  }
+  
 
   // -----------------------
   // Location

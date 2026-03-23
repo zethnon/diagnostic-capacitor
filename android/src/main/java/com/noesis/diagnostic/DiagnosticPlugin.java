@@ -126,6 +126,12 @@ public class DiagnosticPlugin extends Plugin implements BluetoothModule.Bluetoot
     }
 
     @PluginMethod
+    public void enableDebug(PluginCall call) {
+        // Not an operation on Capacitor, we should use Logcat for native debug output
+        call.resolve();
+    }
+
+    @PluginMethod
     public void requestLocationAuthorization(PluginCall call) {
         location.setLocationEverAsked();
         call.getData().put("mode", call.getString("mode", "when_in_use"));

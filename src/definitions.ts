@@ -10,6 +10,9 @@ export interface ExternalSdCardDetail {
 
 export interface DiagnosticPlugin {
 
+  // Enables verbose native logging, but logging is handled by the Capacitor in runtime. 
+  enableDebug(): Promise<void>;
+
   // -----------------------
   // Location
   // -----------------------
