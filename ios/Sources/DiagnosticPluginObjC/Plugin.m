@@ -94,4 +94,15 @@ CAP_PLUGIN(DiagnosticPlugin, "DiagnosticPlugin",
     CAP_PLUGIN_METHOD(getAddressBookAuthorizationStatus, CAPPluginReturnPromise);
     CAP_PLUGIN_METHOD(isAddressBookAuthorized, CAPPluginReturnPromise);
     CAP_PLUGIN_METHOD(requestAddressBookAuthorization, CAPPluginReturnPromise);
+    // -----------------------
+    // System
+    // -----------------------
+    CAP_PLUGIN_METHOD(switchToSettings, CAPPluginReturnPromise);
+    CAP_PLUGIN_METHOD(isADBModeEnabled, CAPPluginReturnPromise);
+    CAP_PLUGIN_METHOD(isDataRoamingEnabled, CAPPluginReturnPromise);
+    CAP_PLUGIN_METHOD(restart, CAPPluginReturnPromise);
+    CAP_PLUGIN_METHOD(switchToMobileDataSettings, CAPPluginReturnPromise);
+    CAP_PLUGIN_METHOD(switchToWirelessSettings, CAPPluginReturnPromise);
+    CAP_PLUGIN_METHOD(isBackgroundRefreshAuthorized, CAPPluginReturnPromise);
+    CAP_PLUGIN_METHOD(enableDebug, CAPPluginReturnPromise);
 )

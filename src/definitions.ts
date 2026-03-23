@@ -578,4 +578,61 @@ export interface DiagnosticPlugin {
    Returns true if permission is granted after the request.
   */
   requestAddressBookAuthorization(): Promise<{ value: boolean }>;
+
+  // -----------------------
+  // Calendar
+  // -----------------------
+
+
+  /**
+   * Opens the app's own page in the device Settings app.
+   * Cross-platform.
+   */
+  switchToSettings(): Promise<void>;
+
+  /**
+   * Enables verbose native logging.
+   * No-op on Capacitor — use Logcat (Android) or Xcode console (iOS) instead.
+   */
+  enableDebug(): Promise<void>;
+
+  /**
+   * Returns whether ADB / USB debugging mode is enabled on the device.
+   * Android only — always returns false on iOS.
+   */
+  isADBModeEnabled(): Promise<{ enabled: boolean }>;
+
+  /**
+   * Returns whether data roaming is enabled.
+   * Android only (API 32 and below) — returns false on iOS and Android 13+.
+   */
+  isDataRoamingEnabled(): Promise<{ enabled: boolean }>;
+
+  /**
+   * Restarts the application.
+   * Android only — rejects on iOS (not possible via public API).
+   * @param cold - if true, cold restarts (kills the process); if false, warm restarts (recreates Activity only).
+   */
+  restart(options: { cold: boolean }): Promise<void>;
+
+  /**
+   * Opens the mobile data / roaming settings screen.
+   * Android: ACTION_DATA_ROAMING_SETTINGS.
+   * iOS: falls back to general app Settings.
+   */
+  switchToMobileDataSettings(): Promise<void>;
+
+  /**
+   * Opens the wireless settings screen (WiFi, Bluetooth, mobile networks).
+   * Android: ACTION_WIRELESS_SETTINGS.
+   * iOS: falls back to general app Settings.
+   */
+  switchToWirelessSettings(): Promise<void>;
+
+  /**
+   * Returns the background app refresh authorization status.
+   * iOS only — returns "not_determined" on Android.
+   * Possible values: "authorized", "denied_always", "restricted", "not_determined".
+   */
+  isBackgroundRefreshAuthorized(): Promise<{ value: string }>;
 }

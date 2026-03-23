@@ -31,6 +31,7 @@ public class DiagnosticPlugin: CAPPlugin {
     private lazy var reminders = RemindersModule(plugin: self)
     private lazy var calendar = CalendarModule()
     private lazy var contacts = ContactsModule()
+    private lazy var system = SystemModule(plugin: self)
 
     // -------------------------------------------------------------------------
     // General
@@ -143,4 +144,21 @@ public class DiagnosticPlugin: CAPPlugin {
     @objc func getAddressBookAuthorizationStatus(_ call: CAPPluginCall) { contacts.getAddressBookAuthorizationStatus(call) }
     @objc func isAddressBookAuthorized(_ call: CAPPluginCall) { contacts.isAddressBookAuthorized(call) }
     @objc func requestAddressBookAuthorization(_ call: CAPPluginCall) { contacts.requestAddressBookAuthorization(call) }
+
+    // -------------------------------------------------------------------------
+    // System
+    // -------------------------------------------------------------------------
+
+    @objc func switchToSettings(_ call: CAPPluginCall) { system.switchToSettings(call) }
+    @objc func isBackgroundRefreshAuthorized(_ call: CAPPluginCall) { system.isBackgroundRefreshAuthorized(call) }
+    @objc func enableDebug(_ call: CAPPluginCall) { call.resolve() } // No-op on Capacitor
+ 
+    // Android-only stubs — resolve cleanly if called on iOS
+    @objc func isADBModeEnabled(_ call: CAPPluginCall) {call.resolve(["enabled": false])}
+    @objc func isDataRoamingEnabled(_ call: CAPPluginCall) {call.resolve(["enabled": false])}
+    // App restart is not possible on iOS via public API
+    @objc func restart(_ call: CAPPluginCall) {call.reject("Restart is not supported on iOS")}
+    // There are no mobile data settings and wireless settins screen on iOS, so i decided these open general settings instead ¯\_(ツ)_/¯
+    @objc func switchToMobileDataSettings(_ call: CAPPluginCall) {system.switchToSettings(call)}
+    @objc func switchToWirelessSettings(_ call: CAPPluginCall) {system.switchToSettings(call)}
 }

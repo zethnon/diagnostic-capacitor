@@ -3,28 +3,9 @@ import type { DiagnosticPlugin, ExternalSdCardDetail } from './definitions';
 
 export class DiagnosticPluginWeb extends WebPlugin implements DiagnosticPlugin {
   
-  
-
-  // -----------------------
-  // helpers
-  // -----------------------
-
-  private not_implemented_status(): { status: string } {
+    private not_implemented_status(): { status: string } {
     return { status: 'not_implemented' };
   }
-  
-  // -----------------------
-  // General
-  // -----------------------
-
-  async enableDebug(): Promise<void> {
-    return;
-  }
-  
-
-  // -----------------------
-  // Location
-  // -----------------------
 
   async getLocationAuthorizationStatus(): Promise<{ status: string }> {
     return this.not_implemented_status();
@@ -86,10 +67,6 @@ export class DiagnosticPluginWeb extends WebPlugin implements DiagnosticPlugin {
     return { value: 'full' };
   }
 
-  // -----------------------
-  // Bluetooth
-  // -----------------------
-
   async switchToBluetoothSettings(): Promise<void> {}
 
   async isBluetoothAvailable(): Promise<{ available: boolean }> {
@@ -136,10 +113,6 @@ export class DiagnosticPluginWeb extends WebPlugin implements DiagnosticPlugin {
     return this.not_implemented_status();
   }
 
-  // -----------------------
-  // Camera
-  // -----------------------
-
   async isCameraPresent(): Promise<{ present: boolean }> {
     return { present: false };
   }
@@ -161,10 +134,6 @@ export class DiagnosticPluginWeb extends WebPlugin implements DiagnosticPlugin {
   }): Promise<{ statuses: Record<string, string> }> {
     return { statuses: {} };
   }
-
-  // -----------------------
-  // Notifications
-  // -----------------------
 
   async isRemoteNotificationsEnabled(): Promise<{ enabled: boolean }> {
     return { enabled: false };
@@ -190,10 +159,6 @@ export class DiagnosticPluginWeb extends WebPlugin implements DiagnosticPlugin {
   }
 
   async switchToNotificationSettings(): Promise<void> {}
-
-  // -----------------------
-  // Wifi
-  // -----------------------
 
   async switchToWifiSettings(): Promise<void> {}
 
@@ -304,4 +269,37 @@ export class DiagnosticPluginWeb extends WebPlugin implements DiagnosticPlugin {
   async requestAddressBookAuthorization(): Promise<{ value: boolean }> {
     throw this.unavailable('Contacts authorization is not available on web.');
   }
+
+  async switchToSettings(): Promise<void> {
+    throw this.unimplemented('switchToSettings is not available on web.');
+  }
+ 
+  async enableDebug(): Promise<void> {
+    return;
+  }
+ 
+  async isADBModeEnabled(): Promise<{ enabled: boolean }> {
+    throw this.unimplemented('isADBModeEnabled is not available on web.');
+  }
+ 
+  async isDataRoamingEnabled(): Promise<{ enabled: boolean }> {
+    throw this.unimplemented('isDataRoamingEnabled is not available on web.');
+  }
+ 
+  async restart(_options: { cold: boolean }): Promise<void> {
+    throw this.unimplemented('restart is not available on web.');
+  }
+ 
+  async switchToMobileDataSettings(): Promise<void> {
+    throw this.unimplemented('switchToMobileDataSettings is not available on web.');
+  }
+ 
+  async switchToWirelessSettings(): Promise<void> {
+    throw this.unimplemented('switchToWirelessSettings is not available on web.');
+  }
+ 
+  async isBackgroundRefreshAuthorized(): Promise<{ value: string }> {
+    throw this.unimplemented('isBackgroundRefreshAuthorized is not available on web.');
+  }
+ 
 }

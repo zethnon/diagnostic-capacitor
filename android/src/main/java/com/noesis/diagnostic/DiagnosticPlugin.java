@@ -18,6 +18,7 @@ import com.noesis.diagnostic.modules.LocationModule;
 import com.noesis.diagnostic.modules.NotificationsModule;
 import com.noesis.diagnostic.modules.WifiModule;
 import com.noesis.diagnostic.modules.NfcModule;
+import com.noesis.diagnostic.modules.SystemModule;
 
 
 @CapacitorPlugin(
@@ -89,6 +90,7 @@ public class DiagnosticPlugin extends Plugin implements BluetoothModule.Bluetoot
     private WifiModule wifi;
     private ExternalStorageModule external_storage;
     private NfcModule nfc;
+    private SystemModule system;
 
     @Override
     public void load() {
@@ -101,6 +103,7 @@ public class DiagnosticPlugin extends Plugin implements BluetoothModule.Bluetoot
         wifi = new WifiModule(this);
         external_storage = new ExternalStorageModule(getContext());
         nfc = new NfcModule(this, this);
+        system = new SystemModule(this);
 
         bluetooth.load();
     }
@@ -453,5 +456,51 @@ public class DiagnosticPlugin extends Plugin implements BluetoothModule.Bluetoot
         JSObject data = new JSObject();
         data.put("state", state);
         notifyListeners("nfcStateChange", data);
+    }
+
+    @PluginMethod
+    public void switchToSettings(PluginCall call) {
+        system.switchToSettings(call);
+    }
+ 
+    @PluginMethod
+    public void isADBModeEnabled(PluginCall call) {
+        system.isADBModeEnabled(call);
+    }
+ 
+    @PluginMethod
+    public void isDataRoamingEnabled(PluginCall call) {
+        system.isDataRoamingEnabled(call);
+    }
+ 
+    @PluginMethod
+    public void restart(PluginCall call) {
+        system.restart(call);
+    }
+ 
+    @PluginMethod
+    public void switchToMobileDataSettings(PluginCall call) {
+        system.switchToMobileDataSettings(call);
+    }
+ 
+    @PluginMethod
+    public void switchToWirelessSettings(PluginCall call) {
+        system.switchToWirelessSettings(call);
+    }
+ 
+    @PluginMethod
+    public void enableDebug(PluginCall call) {
+        // Not an operation on Capacitor — use Logcat for native debug output, so will just resolve the call cleanly
+        call.resolve();
+    }
+
+
+    // On Android this doesn't exist, so this is here just to make sure it resolves properly if ever called from OS    
+    @PluginMethod
+    public void isBackgroundRefreshAuthorized(PluginCall call) {
+        // iOS-only — not applicable on Android
+        JSObject ret = new JSObject();
+        ret.put("value", "not_determined");
+        call.resolve(ret);
     }
 }
