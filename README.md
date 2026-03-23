@@ -2,17 +2,15 @@
 
 A Capacitor port of the [cordova-diagnostic-plugin](https://github.com/dpa99c/cordova-diagnostic-plugin) for OutSystems ODC mobile apps.
 
-This plugin exposes device permission and hardware diagnostic APIs across Android and iOS, with behavior and return values that match the original Cordova plugin. It was built to support dual-stack operation — running alongside the Cordova plugin during an ODC migration — and resolves to the same status strings so existing app logic doesn't need to change.
+This plugin exposes device permission and hardware diagnostic APIs across Android and iOS, with behavior and return values that match the original Cordova plugin. It was built to support dual-stack operation in the DeviceDiagnostic Library; it resolves to the same status strings so existing app logic doesn't need to change.
 
 ---
 
 ## What this is
 
-OutSystems ODC apps can be built with either Cordova (MABS 11) or Capacitor (MABS 12+). The `DeviceDiagnostic` ODC Library uses the Cordova plugin's JavaScript API. When the build target switches to Capacitor, those Cordova calls stop working.
+OutSystems ODC apps can be built with either Cordova (MABS 11) or Capacitor (MABS 12+). The `DeviceDiagnostic` ODC Library used to only build using the Cordova plugin's JavaScript API. When the build target switches to Capacitor, those Cordova calls stop working.
 
 This plugin bridges that gap. It exposes the same method names, parameters, and return values as the original Cordova plugin, but is built as a proper Capacitor plugin so it works in Capacitor builds.
-
-**Cordova behavior is the source of truth.** If something differs from Cordova's output, it's a bug.
 
 ---
 
@@ -25,15 +23,15 @@ This plugin bridges that gap. It exposes the same method names, parameters, and 
 | Camera | ✅ | ✅ |
 | Notifications | ✅ | ✅ |
 | WiFi | ✅ | ✅ |
-| External Storage | ✅ | — |
-| NFC | ✅ | — (no NFC API on iOS) |
-| Microphone | — | ✅ |
-| Motion | — | ✅ |
-| Reminders | — | ✅ |
-| Calendar | — | ✅ |
-| Contacts | — | ✅ |
+| External Storage | ✅ | ❌ |
+| NFC | ✅ | ❌ |
+| Microphone | ❌ | ✅ |
+| Motion | ❌ | ✅ |
+| Reminders | ❌ | ✅ |
+| Calendar | ❌ | ✅ |
+| Contacts | ❌ | ✅ |
 
-Modules listed as `—` return `not_implemented` on that platform, matching the original Cordova plugin's behavior.
+Modules listed as `❌` return `not_implemented` on that platform, matching the original Cordova plugin's behavior.
 
 ---
 
@@ -69,73 +67,6 @@ SPM doesn't allow mixed ObjC/Swift in a single target. The plugin uses two targe
 - `DiagnosticPlugin` — contains all Swift source files
 
 Both are declared in `Package.swift` and linked together. The consuming app's `CapApp-SPM.swift` imports `DiagnosticPlugin`.
-
----
-
-## Installation (ODC Library)
-
-This plugin is not published to npm. Reference it directly from GitHub in the ODC Library's Extensibility Configuration:
-
-```json
-{
-  "buildConfigurations": {
-    "cordova": {
-      "source": {
-        "npm": "https://github.com/dpa99c/cordova-diagnostic-plugin.git#5.0.2"
-      }
-    },
-    "capacitor": {
-      "source": {
-        "npm": "https://github.com/zethnon/diagnostic-capacitor.git#v1.0.2"
-      }
-    }
-  },
-  "pluginConfigurations": {
-    "permissions": {
-      "ios": {
-        "NSCameraUsageDescription": { "description": "This app requires camera access." },
-        "NSPhotoLibraryAddUsageDescription": { "description": "This app requires access to save photos." },
-        "NSPhotoLibraryUsageDescription": { "description": "This app requires access to your photo library." },
-        "NSMicrophoneUsageDescription": { "description": "App requires microphone access." },
-        "NSLocationWhenInUseUsageDescription": { "description": "Diagnostics needs location access to report device location capability and status." },
-        "NSLocationAlwaysAndWhenInUseUsageDescription": { "description": "Diagnostics needs location access, even in the background." },
-        "NSMotionUsageDescription": { "description": "App requires motion access." },
-        "NSRemindersUsageDescription": { "description": "App requires reminders access." },
-        "NSCalendarsUsageDescription": { "description": "This app requires access to calendar events." },
-        "NSContactsUsageDescription": { "description": "This app requires access to contacts." },
-        "NSBluetoothAlwaysUsageDescription": { "description": "App requires Bluetooth access." },
-        "NSLocalNetworkUsageDescription": { "description": "App requires local network access." }
-      }
-    }
-  },
-  "plugin": {
-    "url": "https://github.com/dpa99c/cordova-diagnostic-plugin.git#5.0.2",
-    "variables": [
-      { "name": "Permissions", "value": "['android.permission.INTERNET','android.permission.ACCESS_WIFI_STATE','android.permission.ACCESS_FINE_LOCATION','android.permission.ACCESS_COARSE_LOCATION','android.permission.ACCESS_BACKGROUND_LOCATION','android.permission.BLUETOOTH','android.permission.BLUETOOTH_ADMIN','android.permission.BLUETOOTH_SCAN','android.permission.BLUETOOTH_CONNECT','android.permission.BLUETOOTH_ADVERTISE','android.permission.CHANGE_WIFI_STATE','android.permission.READ_CALENDAR','android.permission.WRITE_CALENDAR','android.permission.CAMERA','android.permission.READ_CONTACTS','android.permission.WRITE_CONTACTS','android.permission.RECORD_AUDIO','android.permission.READ_EXTERNAL_STORAGE','android.permission.WRITE_EXTERNAL_STORAGE']" }
-    ]
-  }
-}
-```
-
-The `plugin` block keeps the Cordova plugin active for MABS 11 backward compatibility. MABS 12+ will use the `buildConfigurations.capacitor` block instead.
-
-Android permissions for the Capacitor plugin don't need to be listed in `pluginConfigurations` — they're declared in the plugin's own `AndroidManifest.xml` and merged automatically by Gradle during a Capacitor build.
-
----
-
-## JavaScript routing (dual-stack)
-
-In each ODC client action that calls the diagnostic plugin, route based on runtime:
-
-```javascript
-if (typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform()) {
-    // Capacitor path
-    const result = await Capacitor.Plugins.DiagnosticPlugin.methodName(params);
-} else {
-    // Cordova path — unchanged
-    cordova.plugins.diagnostic.methodName(params, successCallback, errorCallback);
-}
-```
 
 ---
 
@@ -182,28 +113,3 @@ Status strings match the original Cordova plugin exactly:
 **Notifications (iOS 16+):** `switchToNotificationSettings()` uses `UIApplication.openNotificationSettingsURLString` on iOS 16+ for a direct link to the notification settings page. Falls back to the generic settings URL on older versions.
 
 **Calendar write-only access (iOS 17+):** `.writeOnly` is treated as `"granted"` in CalendarModule (matches Cordova behavior). In RemindersModule, `.writeOnly` is treated as `"denied"` — write-only isn't sufficient for reminders access.
-
----
-
-## Development workflow
-
-```bash
-# After changing plugin source
-cd diagnostic-capacitor
-npm run build
-
-# After changing plugin, update the test app
-cd diagnostic-cap-test
-npm run build
-npx cap sync android   # or ios
-```
-
-Build output goes to `dist/`. The `dist/` folder is included in the npm package via the `files` field in `package.json` — don't gitignore it if you're installing directly from GitHub.
-
----
-
-## Related
-
-- [cordova-diagnostic-plugin](https://github.com/dpa99c/cordova-diagnostic-plugin) — the original Cordova plugin this ports
-- [OutSystems ODC mobile plugins docs](https://success.outsystems.com/documentation/outsystems_developer_cloud/building_apps/mobile_apps/)
-- [Capacitor plugin development docs](https://capacitorjs.com/docs/plugins)
