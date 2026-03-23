@@ -20,6 +20,7 @@ import Capacitor
  */
 @objc(DiagnosticPlugin)
 public class DiagnosticPlugin: CAPPlugin {
+    
 
     private lazy var location = LocationModule()
     private lazy var bluetooth = BluetoothModule(plugin: self)
