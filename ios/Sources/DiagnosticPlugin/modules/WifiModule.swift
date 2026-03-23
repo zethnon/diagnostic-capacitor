@@ -2,18 +2,37 @@ import Foundation
 import Capacitor
 import Network
 
+/*
+ * WifiModule handles WiFi state detection and local network authorization on iOS.
+ *
+ * iOS doesn't have a programmatic WiFi on/off API (Apple locked that down),
+ * so this module covers what's actually possible:
+ * - Detecting if the device is connected via WiFi (en0 interface check)
+ * - Detecting if the WiFi radio is enabled at all (awdl0 interface heuristic)
+ * - Local network permission — an iOS 14+ concept with no direct Android equivalent
+ *
+ * The local network check is the tricky one. iOS doesn't expose a clean API to
+ * read local network permission status — the only way to probe it is to actually
+ * attempt a local network operation and observe whether it succeeds or gets blocked.
+ * We use NWBrowser + NetService for this, which is the same approach used by
+ * several open-source implementations and Apple's own sample code.
+ */
 @objc public class WifiModule: NSObject, NetServiceDelegate {
 
     private let plugin: CAPPlugin
 
+    // UserDefaults key for caching the last known local network permission result.
+    // We persist this because the probe is async and can't always be repeated quickly.
     private let local_network_permission_key = "Diagnostic_LocalNetworkPermission"
     private let local_network_default_timeout_seconds: TimeInterval = 2.0
 
+    // Raw integer values stored/returned for local network permission state.
+    // Matches Cordova's numeric return for getLocalNetworkAuthorizationStatus.
     private enum LocalNetworkPermissionState: Int {
         case unknown = 0
         case granted = 1
         case denied = -1
-        case indeterminate = -2
+        case indeterminate = -2  // timed out or inconclusive — not the same as denied
     }
 
     private var nw_browser_obj: NWBrowser?
@@ -28,6 +47,20 @@ import Network
         super.init()
     }
 
+    /*
+     * Returns { value: Int } — the cached or probed local network permission state.
+     *
+     * States:
+     *   0  = unknown / never checked
+     *   1  = granted
+     *  -1  = denied
+     *  -2  = indeterminate (probe timed out)
+     *
+     * If the cached state is "unknown", we skip the probe and return 0 immediately —
+     * this matches Cordova's behavior of not triggering a permission probe just for a status check.
+     * If a state has been cached (from a previous requestLocalNetworkAuthorization call),
+     * we still run a fresh probe to confirm it hasn't changed, using the timeout parameter.
+     */
     @objc public func getLocalNetworkAuthorizationStatus(_ call: CAPPluginCall) {
         DispatchQueue.global(qos: .background).async {
             let cached = UserDefaults.standard.integer(forKey: self.local_network_permission_key)
@@ -48,7 +81,6 @@ import Network
 
             let timeout_seconds = self.resolve_local_network_timeout(from: call)
 
-            // Swift NWBrowser/NWParameters — replaces C NW_PARAMETERS_* macros
             let parameters = NWParameters(tls: nil, tcp: NWProtocolTCP.Options())
             parameters.includePeerToPeer = true
 
@@ -93,6 +125,18 @@ import Network
         }
     }
 
+    /*
+     * Actively requests local network authorization by attempting a local network operation.
+     *
+     * This triggers the iOS local network permission prompt if it hasn't been shown yet.
+     * The result is determined by NWBrowser state and NetService publish callbacks:
+     * - netServiceDidPublish → granted (we successfully published to the local network)
+     * - NWBrowser .waiting with EPERM or kDNSServiceErr_PolicyDenied → denied
+     * - Anything else / timeout → indeterminate
+     *
+     * Results are cached to UserDefaults so getLocalNetworkAuthorizationStatus can
+     * return a cached value on subsequent calls without re-probing.
+     */
     @objc public func requestLocalNetworkAuthorization(_ call: CAPPluginCall) {
         DispatchQueue.global(qos: .background).async {
             if self.is_requesting {
@@ -124,17 +168,35 @@ import Network
         }
     }
 
+    /*
+     * Returns { available: boolean } — true if the device is currently connected to a WiFi network.
+     * Checks for an active IPv4 address on the "en0" interface (the WiFi interface on iOS devices).
+     * Does not check if WiFi radio is enabled — only if there's an active WiFi connection.
+     */
     @objc public func isWifiAvailable(_ call: CAPPluginCall) {
         DispatchQueue.global(qos: .background).async {
             call.resolve(["available": self.connected_to_wifi()])
         }
     }
 
+    /*
+     * Returns { enabled: boolean } — true if the WiFi radio is on, regardless of connection status.
+     *
+     * Apple doesn't provide a direct API for this. We use a heuristic:
+     * the "awdl0" interface (Apple Wireless Direct Link — used for AirDrop/AirPlay)
+     * appears multiple times in the interface list when WiFi is enabled.
+     * This is an indirect signal but it's the most reliable approach available without
+     * private APIs or entitlements.
+     */
     @objc public func isWifiEnabled(_ call: CAPPluginCall) {
         DispatchQueue.global(qos: .background).async {
             call.resolve(["enabled": self.is_wifi_enabled()])
         }
     }
+
+    // -------------------------------------------------------------------------
+    // Internal helpers
+    // -------------------------------------------------------------------------
 
     private func is_wifi_enabled() -> Bool {
         var interfaces: UnsafeMutablePointer<ifaddrs>?
@@ -151,6 +213,7 @@ import Network
             }
             cursor = current.pointee.ifa_next
         }
+        // awdl0 appears more than once when WiFi is active
         return (counted_names["awdl0"] ?? 0) > 1
     }
 
@@ -188,6 +251,11 @@ import Network
         net_service = nil
     }
 
+    /*
+     * Handles NWBrowser state transitions.
+     * .waiting with EPERM or kDNSServiceErr_PolicyDenied (-65570) means local network is denied.
+     * .failed is treated similarly. Any other state is ignored here.
+     */
     private func handle_browser_state_swift(_ state: NWBrowser.State, context: String) {
         switch state {
         case .waiting(let error):
@@ -251,11 +319,22 @@ import Network
         return calls
     }
 
+    // -------------------------------------------------------------------------
+    // NetServiceDelegate
+    // -------------------------------------------------------------------------
+
+    /*
+     * NetService successfully published → local network access is granted.
+     */
     public func netServiceDidPublish(_ sender: NetService) {
         log_debug("Local network permission granted")
         complete_local_network_flow(with: .granted, should_cache: true)
     }
 
+    /*
+     * NetService failed to publish — could be a port conflict or other error.
+     * Treated as indeterminate rather than denied since it's not a permission failure.
+     */
     public func netService(_ sender: NetService, didNotPublish errorDict: [String: NSNumber]) {
         log_debug("netService didNotPublish: \(errorDict)")
         complete_local_network_flow(with: .indeterminate, should_cache: false)
